@@ -65,27 +65,35 @@ async function llmGradeBatch(items, zhipuKey, geminiKey, rules, logFn, force) {
     + '\nid必须原样回传，理由只针对本条。S只认已发生重大事件，纯行情波动=最B或C。';
   const userTxt = JSON.stringify(batch);
 
-  // 通道1：智谱 glm-4-flash（主，实测最快）
+  // 通道1：智谱 glm-4-flash（主，实测最快）。v453：429/5xx 退避2s重试一次（军令状）
   async function viaZhipu() {
     if (!zhipuKey) throw new Error('no ZHIPU_KEY');
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const r = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-        method: 'POST', signal: ctrl.signal,
-        headers: { 'Authorization': 'Bearer ' + zhipuKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'glm-4-flash-250414',
-          messages: [{ role: 'system', content: sys }, { role: 'user', content: userTxt }],
-          max_tokens: 1200, thinking: { type: 'disabled' } }),
-      });
-      const txt = await r.text();
-      if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + txt.slice(0, 100));
-      const d = JSON.parse(txt);
-      const content = ((d.choices || [])[0] || {}).message?.content || '';
-      const m = content.match(/\[[\s\S]*\]/);
-      if (!m) throw new Error('no JSON array in reply: ' + content.slice(0, 80));
-      return { result: JSON.parse(m[0]), channel: 'zhipu' };
-    } finally { clearTimeout(timer); }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 30000);
+      try {
+        const r = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+          method: 'POST', signal: ctrl.signal,
+          headers: { 'Authorization': 'Bearer ' + zhipuKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'glm-4-flash-250414',
+            messages: [{ role: 'system', content: sys }, { role: 'user', content: userTxt }],
+            max_tokens: 1200, thinking: { type: 'disabled' } }),
+        });
+        const txt = await r.text();
+        // 429 或 5xx：退避后重试一次；其它错误直接抛出（交给 Gemini 兜底）
+        if (r.status === 429 || r.status >= 500) {
+          if (attempt === 0) { note('智谱HTTP' + r.status + ' 退避2s重试'); await new Promise(ok => setTimeout(ok, 2000)); continue; }
+          throw new Error('HTTP ' + r.status + ' ' + txt.slice(0, 100));
+        }
+        if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + txt.slice(0, 100));
+        const d = JSON.parse(txt);
+        const content = ((d.choices || [])[0] || {}).message?.content || '';
+        const m = content.match(/\[[\s\S]*\]/);
+        if (!m) throw new Error('no JSON array in reply: ' + content.slice(0, 80));
+        return { result: JSON.parse(m[0]), channel: 'zhipu' };
+      } finally { clearTimeout(timer); }
+    }
+    throw new Error('zhipu exhausted');
   }
 
   // 通道2：Gemini 3.1 flash lite（备，带 thinkingLevel:minimal 防深度思考）
@@ -152,24 +160,8 @@ async function driveNewsCron(env) {
     await saveLog('源明细:' + srcDetail.slice(0, 10).join(' '));
   } catch (e) { await saveLog('10源抓取异常 ' + String(e)); }
   if (!raw.length) { await saveLog('10源全空，短路'); return; }
-  /* v451 遗留：前端上报队列继续兼容消费（新架构下前端已不再上报，队列自然为空）。 */
-  let ingested = [];
-  let ingestIds = [];
-  try {
-    const q = await env.ACCT_KV.get('mp_news_ingest_queue');
-    if (q) ingested = JSON.parse(q);
-    ingestIds = ingested.map(x => x.id);
-  } catch (e) {}
-  if (ingested.length) {
-    await saveLog('ingest队列=' + ingested.length + '条');
-    // v451：前端上报的10源新闻是用户正在看的，必须优先于 Worker 自抓源，
-    // 否则 fresh 前12条被新浪/同花顺占满、上报源永远进不了池（无AI角标）。
-    const ingItems = ingested.map(x => ({ id: x.id, title: x.title, brief: x.brief,
-      ts: x.ts, src: x.src || '快讯' }));
-    raw = ingItems.concat(raw);   // 上报源置顶，优先入选 fresh
-    // 注意：队列不在这里清空！必须等 LLM 成功入池后再清（见下方），
-    // 否则中途异常(如同花顺超时)会导致条目"已出队但未分级"永久丢失。
-  }
+  /* v453【双轨独立】轨道B的 raw 只来自 Worker 自己云端抓的10源，
+   * 绝不消费前端 ingest 队列（前端已彻底不上报，零耦合）。 */
   if (!raw.length) { await saveLog('无源可用短路'); return; }
   // 去重（按 id）
   const seen = new Set();
@@ -185,7 +177,7 @@ async function driveNewsCron(env) {
   await saveLog('池子=' + pool.length + '条');
   const poolIds = new Set(pool.map(x => x.id));
   const freshAll = raw.filter(x => !poolIds.has(x.id));
-  const fresh = freshAll.slice(0, 30);   // v451：回填期提高至30条/轮，加快24h存量消化
+  const fresh = freshAll.slice(0, 40);   // v453：放宽至40条/轮，加快24h存量攒池（军令状）
   await saveLog('fresh前5=' + fresh.slice(0, 5).map(x => x.id).join(',') + ' 总新增=' + freshAll.length);
   if (!fresh.length && pool.length) { await saveLog('无新增,0调用短路'); return; }
   const zhipuKey = env.ZHIPU_KEY, geminiKey = env.GEMINI_KEY;   // Worker secret，KV 不存明文 key
@@ -234,17 +226,6 @@ async function driveNewsCron(env) {
     src: '新浪财经+同花顺', engine: 'CF边缘·智谱增量池', items: newPool,
     newCount: freshItems.length, poolSize: newPool.length,
   }));
-  // LLM 成功后清空已处理条目（不论是否入池——ts太旧的会被池子截断挤出，
-  // 若保留会永远卡队列反复送LLM浪费额度）。本次 fresh 里被送过的 id 全部移除。
-  if (ingestIds.length) {
-    try {
-      const processed = new Set(fresh.map(x => x.id));
-      // 也在池子里的(已入池)一并清掉，避免残留反复占位
-      const rest = ingested.filter(x => !processed.has(x.id) && !poolIds.has(x.id));
-      await env.ACCT_KV.put('mp_news_ingest_queue', JSON.stringify(rest));
-      await saveLog('队列剩余=' + rest.length);
-    } catch (e) {}
-  }
   await saveLog('写入完成 新增' + freshItems.length + ' 池' + newPool.length + ' ms=' + (Date.now() - t0));
 }
 

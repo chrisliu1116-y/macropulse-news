@@ -36,31 +36,10 @@ export default {
         'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
     }
 
-    /* /__ingest —— 前端把抓到的全源新闻(id/title/brief/src)异步喂进待分级队列。
-     * 解决"边缘池子只有新浪+同花顺、财联社/金十等源永远没AI角标"的问题。
-     * 只写 KV 队列，不做 LLM（不阻塞前端）；Worker 每分钟从队列取新增分级。
-     * 限流：单次≤40条、标题≤120字，防滥用。 */
-    if (u.pathname === '/__ingest' && request.method === 'POST') {
-      if (!env.ACCT_KV) return json({ error: 'KV not bound' }, 503);
-      let items = [];
-      try { const body = await request.json(); items = Array.isArray(body.items) ? body.items : []; }
-      catch (e) { return json({ error: 'bad json' }, 400); }
-      items = items.slice(0, 50).filter(x => x && x.id && x.title)
-        .map(x => ({ id: String(x.id).slice(0, 80), title: String(x.title).slice(0, 120),
-          brief: String(x.brief || '').slice(0, 200), src: String(x.src || '').slice(0, 30),
-          ts: Number(x.ts) || Date.now() }));
-      if (!items.length) return json({ ok: true, n: 0 });
-      // 去重合并进队列（队列本身也限 200 条）
-      let queue = [];
-      try { queue = JSON.parse((await env.ACCT_KV.get('mp_news_ingest_queue')) || '[]'); } catch (e) {}
-      const have = new Set(queue.map(x => x.id));
-      items.forEach(x => { if (!have.has(x.id)) { queue.push(x); have.add(x.id); } });
-      if (queue.length > 1000) queue = queue.slice(-1000);
-      await env.ACCT_KV.put('mp_news_ingest_queue', JSON.stringify(queue));
-      return json({ ok: true, accepted: items.length, queue: queue.length });
-    }
+    /* v453【双轨独立】/__ingest 端点已删除——前端不再向边缘上报任何新闻，
+     * 轨道B（Worker）完全靠自己云端抓10源喂LLM，与前端零耦合。 */
 
-    // /__news —— 从 KV 读 CF 边缘 2 分钟增量的 LLM 分级成品（前端毫秒级异步覆盖）
+    // /__news —— 从 KV 读 CF 边缘 1 分钟增量的 LLM 分级成品（前端只读贴标）
     if (u.pathname === '/__news' || u.pathname === '/news.json') {
       if (!env.ACCT_KV) return json({ error: 'KV not bound', items: [] }, 503);
       const raw = await env.ACCT_KV.get('mp_news_all');
