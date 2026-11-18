@@ -23,6 +23,24 @@ BASE = 'https://api.cloudflare.com/client/v4'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+def _autoload_env():
+    """v451：自动加载凭据文件——防止部署时忘记 source llm.env 导致
+    ZHIPU_KEY/GEMINI_KEY secret 被空串覆盖（2026-11-19 踩过，致快讯分级全停）。
+    只在环境变量未设置时补载，不覆盖调用者显式传入的值。"""
+    for p in ('E:/WorkBuddy工作区/_tools/cf.env', 'E:/WorkBuddy工作区/_tools/llm.env'):
+        if not os.path.exists(p):
+            continue
+        for line in open(p, encoding='utf-8'):
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            k, v = line.split('=', 1)
+            os.environ.setdefault(k.strip(), v.strip().strip('"\''))
+
+
+_autoload_env()
+
+
 def api(method, path, token, body=None, ctype='application/json'):
     data = None
     if body is not None:

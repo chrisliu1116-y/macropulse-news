@@ -22,7 +22,7 @@ import os, sys, json, time, argparse, re
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from llm_pool import chat, AllModelsFailed
+from llm_pool import chat, chat_heavy, AllModelsFailed
 
 MAX_ACTIVE = 6
 DORMANT_DAYS = 7
@@ -120,8 +120,8 @@ def try_incubate(candidates, existing_themes, verbose=True):
               + '\n'.join('- ' + str(t) for t in existing_themes) + '\n\n'
               '请严格按系统规则判断是否构成新的重大事件并输出卡片配置 JSON。')
     try:
-        text, ch = chat([{'role': 'system', 'content': INCUBATOR_SYS},
-                         {'role': 'user', 'content': prompt}], max_tokens=800, verbose=verbose)
+        text, ch = chat_heavy([{'role': 'system', 'content': INCUBATOR_SYS},
+                         {'role': 'user', 'content': prompt}], max_tokens=2000, timeout=100, verbose=verbose)
     except AllModelsFailed:
         return None, 'local-rule', 'LLM全挂，跳过建卡'
     m = re.search(r'\{[\s\S]*\}', text)

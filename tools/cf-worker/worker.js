@@ -175,6 +175,25 @@ async function driveNewsCron(env) {
   catch (e) { await saveLog('sina ERR ' + String(e)); }
   try { const t = await fetchTHSEdge(); raw = raw.concat(t); await saveLog('ths=' + t.length); }
   catch (e) { await saveLog('ths ERR ' + String(e)); }
+  /* v451：并入前端异步上报的全源新闻队列（财联社/金十/华尔街见闻等）。
+   * Pages 与 Worker 共用 ACCT_KV，队列互通。处理后清空，前端每轮重新喂未分级的。 */
+  let ingested = [];
+  let ingestIds = [];
+  try {
+    const q = await env.ACCT_KV.get('mp_news_ingest_queue');
+    if (q) ingested = JSON.parse(q);
+    ingestIds = ingested.map(x => x.id);
+  } catch (e) {}
+  if (ingested.length) {
+    await saveLog('ingest队列=' + ingested.length + '条');
+    // v451：前端上报的10源新闻是用户正在看的，必须优先于 Worker 自抓源，
+    // 否则 fresh 前12条被新浪/同花顺占满、上报源永远进不了池（无AI角标）。
+    const ingItems = ingested.map(x => ({ id: x.id, title: x.title, brief: x.brief,
+      ts: x.ts, src: x.src || '快讯' }));
+    raw = ingItems.concat(raw);   // 上报源置顶，优先入选 fresh
+    // 注意：队列不在这里清空！必须等 LLM 成功入池后再清（见下方），
+    // 否则中途异常(如同花顺超时)会导致条目"已出队但未分级"永久丢失。
+  }
   if (!raw.length) { await saveLog('无源可用短路'); return; }
   // 去重（按 id）
   const seen = new Set();
@@ -182,12 +201,16 @@ async function driveNewsCron(env) {
   /* v449【纯增量 + 60条滚动池】读旧池子 → 只挑池里没有的新条目送 LLM。
    * 池子按 id 索引，保留最近 60 条已分级新闻。无新增 → 0 调用直接短路。 */
   const POOL_KEY = 'mp_news_pool';
-  const POOL_MAX = 60;
+  // v451：扩容至 1000 条（覆盖24h全量），保留 24 小时内的，超期按 TTL 淘汰
+  const POOL_MAX = 1000;
+  const POOL_TTL_MS = 24 * 3600 * 1000;
   let pool = [];
   try { const p = await env.ACCT_KV.get(POOL_KEY); if (p) pool = JSON.parse(p); } catch (e) { pool = []; }
   await saveLog('池子=' + pool.length + '条');
   const poolIds = new Set(pool.map(x => x.id));
-  const fresh = raw.filter(x => !poolIds.has(x.id)).slice(0, 12);   // 最多12条/轮防突发
+  const freshAll = raw.filter(x => !poolIds.has(x.id));
+  const fresh = freshAll.slice(0, 30);   // v451：回填期提高至30条/轮，加快24h存量消化
+  await saveLog('fresh前5=' + fresh.slice(0, 5).map(x => x.id).join(',') + ' 总新增=' + freshAll.length);
   if (!fresh.length && pool.length) { await saveLog('无新增,0调用短路'); return; }
   const zhipuKey = env.ZHIPU_KEY, geminiKey = env.GEMINI_KEY;   // Worker secret，KV 不存明文 key
   if (!zhipuKey && !geminiKey) { await saveLog('无LLM key(secret)'); return; }
@@ -224,7 +247,10 @@ async function driveNewsCron(env) {
   const seen2 = new Set();
   merged.forEach(x => { if (!seen2.has(x.id)) { seen2.add(x.id); uniq.push(x); } });
   uniq.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-  const newPool = uniq.slice(0, POOL_MAX);
+  // 24h TTL 淘汰：超过 24 小时的旧条目直接丢弃；再按上限 1000 截断
+  const cutoff = Date.now() - POOL_TTL_MS;
+  const inWindow = uniq.filter(x => (x.ts || 0) >= cutoff);
+  const newPool = inWindow.slice(0, POOL_MAX);
   await env.ACCT_KV.put(POOL_KEY, JSON.stringify(newPool));
   // 产物 = 整个池子（前端一次拿到60条映射，首屏0ms覆盖更全）
   await env.ACCT_KV.put(NEWS_KV_KEY, JSON.stringify({
@@ -232,6 +258,17 @@ async function driveNewsCron(env) {
     src: '新浪财经+同花顺', engine: 'CF边缘·智谱增量池', items: newPool,
     newCount: freshItems.length, poolSize: newPool.length,
   }));
+  // LLM 成功后清空已处理条目（不论是否入池——ts太旧的会被池子截断挤出，
+  // 若保留会永远卡队列反复送LLM浪费额度）。本次 fresh 里被送过的 id 全部移除。
+  if (ingestIds.length) {
+    try {
+      const processed = new Set(fresh.map(x => x.id));
+      // 也在池子里的(已入池)一并清掉，避免残留反复占位
+      const rest = ingested.filter(x => !processed.has(x.id) && !poolIds.has(x.id));
+      await env.ACCT_KV.put('mp_news_ingest_queue', JSON.stringify(rest));
+      await saveLog('队列剩余=' + rest.length);
+    } catch (e) {}
+  }
   await saveLog('写入完成 新增' + freshItems.length + ' 池' + newPool.length + ' ms=' + (Date.now() - t0));
 }
 
