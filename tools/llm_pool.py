@@ -59,7 +59,18 @@ def _gemini(model):
         key = os.environ.get('GEMINI_KEY', '')
         if not key: raise RuntimeError('no GEMINI_KEY')
         parts = [{'role': 'user', 'parts': [{'text': m.get('content', '')}]} for m in messages]
-        body = {'contents': parts, 'generationConfig': {'maxOutputTokens': max_tokens}}
+        # v449【按模型版本关思考·防后台深度思考拖慢兜底】(2026-11-19 实测):
+        #   · Gemini 3.x → thinkingConfig.thinkingLevel='minimal'（实测 OK 2.07s；
+        #     不带该参数曾遇 503 高需求，minimal 走轻量通道反而稳）。
+        #   · Gemini 2.5 → thinkingConfig.thinkingBudget=0（若启用 2.5 系列时用）。
+        #   · flash-lite 系列(如 gemini-flash-lite-latest)本身无思考能力，
+        #     **绝不能传** thinkingConfig —— 实测传 thinkingBudget:0 返回 400 INVALID_ARGUMENT。
+        gc = {'maxOutputTokens': max_tokens}
+        if model.startswith('gemini-3'):
+            gc['thinkingConfig'] = {'thinkingLevel': 'minimal'}
+        elif model.startswith('gemini-2.5') and 'flash' in model:
+            gc['thinkingConfig'] = {'thinkingBudget': 0}
+        body = {'contents': parts, 'generationConfig': gc}
         url = GEMINI_BASE + model + ':generateContent?key=' + key
         req = urllib.request.Request(url, data=json.dumps(body).encode(),
             headers={'Content-Type': 'application/json'})
