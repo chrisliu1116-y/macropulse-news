@@ -86,31 +86,79 @@ function parseTs(s) {
   return isFinite(t) && t > 0 ? t : Date.now();
 }
 
-// 智谱微批分级（JSON 输出）：复用 prompt_rules 快照核心，ID 锚定，S/A/B/C。
-async function llmGradeBatch(items, key, rules) {
+/* v450【双通道微批分级】智谱(主,快) → Gemini(备)，两路都失败才返回 null(才算全断)。
+ * 修 v449 实现偏差：之前快讯链路只用了智谱一个源，智谱一挂就误报"AI已断开"。
+ * 现与卡片链路一致：智谱+Gemini 有序降级，只有两个都挂才红灯/本地兜底。
+ * 每次失败记详细原因到 log，供排查智谱频繁失败的根因。 */
+async function llmGradeBatch(items, zhipuKey, geminiKey, rules, logFn) {
+  const note = logFn || (() => {});
   const batch = items.map((it, i) => ({ id: i, title: it.title, brief: it.brief }));
   const sys = '你是快讯审核编辑。用规则给每条快讯判级。只输出JSON数组，不要markdown。\n'
     + (rules || '').slice(0, 6000)
     + '\n每条格式：{"id":0,"level":"S/A/B/C","category":"简短分类","reason":"≤15字"}'
     + '\nid必须原样回传，理由只针对本条。S只认已发生重大事件，纯行情波动=最B或C。';
-  // v448：24条微批实测本地16.5s、CF边缘更慢，20s太紧会abort→null。放宽到45s。
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 45000);
+  const userTxt = JSON.stringify(batch);
+
+  // 通道1：智谱 glm-4-flash（主，实测最快）
+  async function viaZhipu() {
+    if (!zhipuKey) throw new Error('no ZHIPU_KEY');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    try {
+      const r = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+        method: 'POST', signal: ctrl.signal,
+        headers: { 'Authorization': 'Bearer ' + zhipuKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'glm-4-flash-250414',
+          messages: [{ role: 'system', content: sys }, { role: 'user', content: userTxt }],
+          max_tokens: 1200, thinking: { type: 'disabled' } }),
+      });
+      const txt = await r.text();
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + txt.slice(0, 100));
+      const d = JSON.parse(txt);
+      const content = ((d.choices || [])[0] || {}).message?.content || '';
+      const m = content.match(/\[[\s\S]*\]/);
+      if (!m) throw new Error('no JSON array in reply: ' + content.slice(0, 80));
+      return { result: JSON.parse(m[0]), channel: 'zhipu' };
+    } finally { clearTimeout(timer); }
+  }
+
+  // 通道2：Gemini 3.1 flash lite（备，带 thinkingLevel:minimal 防深度思考）
+  async function viaGemini() {
+    if (!geminiKey) throw new Error('no GEMINI_KEY');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    try {
+      const body = { contents: [{ role: 'user', parts: [{ text: sys + '\n\n' + userTxt }] }],
+        generationConfig: { maxOutputTokens: 1200, thinkingConfig: { thinkingLevel: 'minimal' } } };
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=' + geminiKey;
+      const r = await fetch(url, { method: 'POST', signal: ctrl.signal,
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const txt = await r.text();
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + txt.slice(0, 100));
+      const d = JSON.parse(txt);
+      const content = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const m = content.match(/\[[\s\S]*\]/);
+      if (!m) throw new Error('no JSON array in reply: ' + content.slice(0, 80));
+      return { result: JSON.parse(m[0]), channel: 'gemini' };
+    } finally { clearTimeout(timer); }
+  }
+
+  // 有序降级：智谱失败→Gemini；两路都失败→返回 null
   try {
-    const r = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-      method: 'POST', signal: ctrl.signal,
-      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'glm-4-flash-250414',
-        messages: [{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify(batch) }],
-        max_tokens: 1200, thinking: { type: 'disabled' } }),
-    });
-    const d = await r.json();
-    const txt = ((d.choices || [])[0] || {}).message?.content || '';
-    const m = txt.match(/\[[\s\S]*\]/);
-    if (!m) return null;
-    return JSON.parse(m[0]);
-  } catch (e) { console.log('[news-cron] LLM 分级失败: ' + String(e)); return null; }
-  finally { clearTimeout(timer); }
+    const out = await viaZhipu();
+    note('LLM通道=zhipu');
+    return out;
+  } catch (e1) {
+    note('智谱失败:' + String(e1.message || e1).slice(0, 90));
+    try {
+      const out = await viaGemini();
+      note('LLM通道=gemini(智谱兜底)');
+      return out;
+    } catch (e2) {
+      note('Gemini也失败:' + String(e2.message || e2).slice(0, 90));
+      return null;   // 两路全断
+    }
+  }
 }
 
 async function driveNewsCron(env) {
@@ -141,39 +189,25 @@ async function driveNewsCron(env) {
   const poolIds = new Set(pool.map(x => x.id));
   const fresh = raw.filter(x => !poolIds.has(x.id)).slice(0, 12);   // 最多12条/轮防突发
   if (!fresh.length && pool.length) { await saveLog('无新增,0调用短路'); return; }
-  const key = env.ZHIPU_KEY;   // 只用 Worker secret，KV 不存明文 key
-  if (!key) { await saveLog('无ZHIPU_KEY(secret)'); return; }
+  const zhipuKey = env.ZHIPU_KEY, geminiKey = env.GEMINI_KEY;   // Worker secret，KV 不存明文 key
+  if (!zhipuKey && !geminiKey) { await saveLog('无LLM key(secret)'); return; }
   const rules = await env.ACCT_KV.get('mp_prompt_rules') || '';
   // 首次(池空)取前12条建档；之后只送真正新增的 1~4 条 → LLM 2s 内
   const target = fresh.length ? fresh : raw.slice(0, 12);
   await saveLog('送LLM=' + target.length + '条(纯增量)');
-  const graded = await llmGradeBatch(target, key, rules);
-  await saveLog('LLM结果=' + (graded ? graded.length : 'null'));
-  // 【全断红灯状态】LLM 失败 = 降级本地规则；记录状态跃迁并触发 webhook（仅 up→down 一次）
+  const out = await llmGradeBatch(target, zhipuKey, geminiKey, rules, saveLog);
+  const graded = out ? out.result : null;
+  await saveLog('LLM结果=' + (graded ? graded.length + '@' + out.channel : 'null(双通道全断)'));
+  /* 【全断红灯状态】v450：两路 LLM 都失败才算 down。只写 KV 供 App 顶部红灯读取，
+   * 不再发任何外部 webhook（Server酱免费额度被2分钟连发2条耗尽，这条路已彻底断开）。 */
   try {
     const prev = JSON.parse((await env.ACCT_KV.get('mp_llm_status')) || '{"down":false}');
     const down = !graded;
     if (down !== !!prev.down) {
       await env.ACCT_KV.put('mp_llm_status', JSON.stringify({ down, ts: Date.now(),
-        reason: down ? '智谱+Google全部失效，回退本地规则' : 'LLM已恢复' }));
-      const hook = env.ALERT_WEBHOOK_URL;
-      if (hook && down) {
-        // v449：兼容 Server酱 Turbo（form-urlencoded title/desp）与通用 JSON webhook
-        try {
-          const isSCT = /sctapi\.ftqq\.com/.test(hook);
-          await fetch(hook, isSCT ? {
-            method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'title=' + encodeURIComponent('🚨 MACRO PULSE AI已断开')
-              + '&desp=' + encodeURIComponent('智谱分级失败，快讯已回退本地规则。\n时间：'
-                + new Date(Date.now() + 8 * 3600e3).toISOString().replace('T', ' ').slice(0, 19))
-          } : {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: '🚨 MACRO PULSE：AI已断开·规则兜底', ts: Date.now() })
-          });
-          await saveLog('webhook已发');
-        } catch (e) { await saveLog('webhook失败: ' + String(e)); }
-      }
-      await saveLog('LLM状态跃迁 down=' + down);
+        reason: down ? '智谱+Gemini双通道全断，回退本地规则' : 'LLM已恢复',
+        channel: down ? '' : (out && out.channel || '') }));
+      await saveLog('LLM状态跃迁 down=' + down + '(仅KV,不发webhook)');
     }
   } catch (e) { await saveLog('状态写入异常 ' + e); }
   if (!graded) { await saveLog('LLM无结果保留旧产物'); return; }

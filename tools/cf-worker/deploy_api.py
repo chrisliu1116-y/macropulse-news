@@ -136,9 +136,9 @@ def main():
                            # v446：CF 边缘 2 分钟驱动的 LLM 分级凭据（从本地 llm.env 读）
                            {'type': 'secret_text', 'name': 'ZHIPU_KEY', 'text': os.environ.get('ZHIPU_KEY', '')},
                            {'type': 'secret_text', 'name': 'GEMINI_KEY', 'text': os.environ.get('GEMINI_KEY', '')},
-                           # v449：AI 全断状态跃迁通知（Server酱 Turbo → 微信；sendkey 内嵌，不显式落明文 env）
-                           {'type': 'secret_text', 'name': 'ALERT_WEBHOOK_URL', 'text':
-                            os.environ.get('ALERT_WEBHOOK_URL', 'https://sctapi.ftqq.com/SCT459956T4Kxa0I09Tzxv0D7VbHIDEnMW.send')},
+                           # v450：外部 webhook 已停用（免费额度2分钟连发2条会耗尽）。
+                           # 告警只在 App 顶部红灯显示，不推微信。默认空，且 Worker 端不再发送。
+                           {'type': 'secret_text', 'name': 'ALERT_WEBHOOK_URL', 'text': ''},
                            # 账号与设置备份存 Workers KV（GitHub PAT 无 Gist 写权限）
                            {'type': 'kv_namespace', 'name': 'ACCT_KV',
                             'namespace_id': ns_id}
