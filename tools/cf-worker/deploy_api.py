@@ -133,6 +133,11 @@ def main():
                            # 账号/备份代理复用同一 PAT；前端永不接触该值
                            {'type': 'secret_text', 'name': 'GH_PAT', 'text': gh_pat},
                            {'type': 'secret_text', 'name': 'CRON_KEY', 'text': cron_key},
+                           # v446：CF 边缘 2 分钟驱动的 LLM 分级凭据（从本地 llm.env 读）
+                           {'type': 'secret_text', 'name': 'ZHIPU_KEY', 'text': os.environ.get('ZHIPU_KEY', '')},
+                           {'type': 'secret_text', 'name': 'GEMINI_KEY', 'text': os.environ.get('GEMINI_KEY', '')},
+                           # v446：AI 全断状态跃迁通知 webhook（未配置则为空，不阻塞）
+                           {'type': 'secret_text', 'name': 'ALERT_WEBHOOK_URL', 'text': os.environ.get('ALERT_WEBHOOK_URL', '')},
                            # 账号与设置备份存 Workers KV（GitHub PAT 无 Gist 写权限）
                            {'type': 'kv_namespace', 'name': 'ACCT_KV',
                             'namespace_id': ns_id}
@@ -177,6 +182,7 @@ def main():
     crons = [
         {'cron': '*/15 7 * * 1-5'},   # 北京 15:00/15:15/15:30/15:45 每15分钟（breadth跑批）
         {'cron': '0 0,12 * * *'},     # 北京 08:00/20:00 事件卡片每日态势演进（v432）
+        {'cron': '*/2 * * * *'},      # v446：CF边缘快讯增量驱动（无新增短路，非东财源）
     ]
     sched_path = '/accounts/%s/workers/scripts/%s/schedules' % (acc, NAME)
     want = sorted(c['cron'] for c in crons)

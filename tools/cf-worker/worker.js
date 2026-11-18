@@ -34,6 +34,150 @@ async function triggerEvolve(env) {
   } catch (e) { return 0; }
 }
 
+/* ============================================================
+ * v446【CF 边缘 2 分钟快讯增量驱动】
+ * 每 2 分钟：抓全量可用源(非东财) → 无新增短路 → 智谱微批分级 → 写 KV mp_news_all。
+ * 严守东财红线：这里绝不请求 eastmoney 任何域名（东财跑批在 GHA 独立出口）。
+ * 前端读 Pages /__news（KV 成品），异步覆盖，不等待本任务。
+ * ============================================================ */
+const NEWS_KV_KEY = 'mp_news_all';
+const NEWS_FP_KEY = 'mp_news_fingerprint';
+
+// 抓新浪 7×24（JSONP→JSON）。非东财。
+async function fetchSinaEdge() {
+  const url = 'https://zhibo.sina.com.cn/api/zhibo/feed?page=1&page_size=30&zhibo_id=152&tag_id=0&dire=f&dpc=1';
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 12000);
+  try {
+  const r = await fetch(url, { signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://finance.sina.com.cn/7x24/' }, cf: { cacheTtl: 0 } });
+  const raw = await r.text();
+  const m = raw.match(/\(\s*(\{[\s\S]*\})\s*\)/);
+  const d = JSON.parse(m ? m[1] : raw);
+  const feed = (((d || {}).result || {}).data || {}).feed || {};
+  return ((feed.list) || []).map(it => {
+    const text = String(it.rich_text || it.content || '').replace(/<[^>]+>/g, '').trim();
+    if (!text) return null;
+    const mm = text.match(/^【(.+?)】\s*([\s\S]*)$/);
+    return { id: 'sn-' + (it.id || ''), title: (mm ? mm[1] : text).trim().slice(0, 60),
+      brief: (mm ? mm[2] : '').trim().slice(0, 200), ts: it.create_time || '', src: '新浪财经' };
+  }).filter(Boolean);
+  } finally { clearTimeout(tm); }
+}
+
+// 抓同花顺 7×24（CORS 全开，JSON）。非东财。
+async function fetchTHSEdge() {
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 12000);
+  try {
+  const r = await fetch('https://news.10jqka.com.cn/tapp/news/push/stock/?page=1&tag=&track=website&pagesize=30',
+    { signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://news.10jqka.com.cn/' }, cf: { cacheTtl: 0 } });
+  const d = await r.json();
+  const list = (((d || {}).data || {}).list) || d.data || [];
+  return (Array.isArray(list) ? list : []).map(it => ({
+    id: 'ths-' + (it.id || Math.random().toString(36).slice(2)),
+    title: String(it.title || '').trim().slice(0, 60),
+    brief: String(it.digest || '').trim().slice(0, 200), ts: it.ctime || it.rtime || '', src: '同花顺',
+  })).filter(x => x.title);
+  } finally { clearTimeout(tm); }
+}
+
+function parseTs(s) {
+  const str = String(s || '').trim();
+  let t = /^\d+$/.test(str) ? (str.length > 11 ? +str : +str * 1000)
+    : Date.parse(str.replace(/-/g, '/'));
+  return isFinite(t) && t > 0 ? t : Date.now();
+}
+
+// 智谱微批分级（JSON 输出）：复用 prompt_rules 快照核心，ID 锚定，S/A/B/C。
+async function llmGradeBatch(items, key, rules) {
+  const batch = items.map((it, i) => ({ id: i, title: it.title, brief: it.brief }));
+  const sys = '你是快讯审核编辑。用规则给每条快讯判级。只输出JSON数组，不要markdown。\n'
+    + (rules || '').slice(0, 6000)
+    + '\n每条格式：{"id":0,"level":"S/A/B/C","category":"简短分类","reason":"≤15字"}'
+    + '\nid必须原样回传，理由只针对本条。S只认已发生重大事件，纯行情波动=最B或C。';
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const r = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'glm-4-flash-250414',
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify(batch) }],
+        max_tokens: 1200, thinking: { type: 'disabled' } }),
+    });
+    const d = await r.json();
+    const txt = ((d.choices || [])[0] || {}).message?.content || '';
+    const m = txt.match(/\[[\s\S]*\]/);
+    if (!m) return null;
+    return JSON.parse(m[0]);
+  } catch (e) { console.log('[news-cron] LLM 分级失败: ' + String(e)); return null; }
+  finally { clearTimeout(timer); }
+}
+
+async function driveNewsCron(env) {
+  if (!env.ACCT_KV) { console.log('[news-cron] KV 未绑定，跳过'); return; }
+  const t0 = Date.now();
+  const log = [];
+  const saveLog = async (msg) => {
+    log.push(msg);
+    try { await env.ACCT_KV.put('mp_news_cronlog', JSON.stringify({ ts: new Date().toISOString(), lines: log })); } catch (e) {}
+  };
+  await saveLog('start cron=' + (env.__cron || ''));
+  let raw = [];
+  try { const s = await fetchSinaEdge(); raw = raw.concat(s); await saveLog('sina=' + s.length); }
+  catch (e) { await saveLog('sina ERR ' + String(e)); }
+  try { const t = await fetchTHSEdge(); raw = raw.concat(t); await saveLog('ths=' + t.length); }
+  catch (e) { await saveLog('ths ERR ' + String(e)); }
+  if (!raw.length) { await saveLog('无源可用短路'); return; }
+  // 去重（按 id）
+  const seen = new Set();
+  raw = raw.filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return true; });
+  // 无新增短路：指纹 = 前20条 id 拼接
+  const fp = raw.slice(0, 20).map(x => x.id).join('|');
+  const oldFp = await env.ACCT_KV.get(NEWS_FP_KEY);
+  const hasProduct = await env.ACCT_KV.get(NEWS_KV_KEY);
+  await saveLog('fp=' + fp.slice(0, 40) + ' old=' + (oldFp || '').slice(0, 40) + ' hasProduct=' + !!hasProduct);
+  // 无新增短路：仅当已有产物且指纹相同时才跳过。首次(无产物)必须强制写一次。
+  if (oldFp === fp && hasProduct) { await saveLog('无新增短路'); return; }
+  const key = env.ZHIPU_KEY;   // 只用 Worker secret，KV 不存明文 key
+  if (!key) { await saveLog('无ZHIPU_KEY(secret)'); return; }
+  await saveLog('有key,开始LLM');
+  const rules = await env.ACCT_KV.get('mp_prompt_rules') || '';
+  // 取最近 24 条微批分级
+  const target = raw.slice(0, 24);
+  const graded = await llmGradeBatch(target, key, rules);
+  await saveLog('LLM结果=' + (graded ? graded.length : 'null'));
+  // 【全断红灯状态】LLM 失败 = 降级本地规则；记录状态跃迁并触发 webhook（仅 up→down 一次）
+  try {
+    const prev = JSON.parse((await env.ACCT_KV.get('mp_llm_status')) || '{"down":false}');
+    const down = !graded;
+    if (down !== !!prev.down) {
+      await env.ACCT_KV.put('mp_llm_status', JSON.stringify({ down, ts: Date.now(),
+        reason: down ? '智谱+Google全部失效，回退本地规则' : 'LLM已恢复' }));
+      const hook = env.ALERT_WEBHOOK_URL;
+      if (hook && down) {
+        try { await fetch(hook, { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: '🚨 MACRO PULSE：AI已断开·规则兜底（智谱+Google全失效，事件卡片与快讯分级暂用本地规则）', ts: Date.now() }) }); }
+        catch (e) { console.log('[news-cron] webhook失败: ' + e); }
+      }
+      await saveLog('LLM状态跃迁 down=' + down);
+    }
+  } catch (e) { await saveLog('状态写入异常 ' + e); }
+  if (!graded) { await saveLog('LLM无结果保留旧产物'); return; }
+  const byId = {};
+  graded.forEach(g => { byId[g.id] = g; });
+  const items = target.map((it, i) => {
+    const g = byId[i] || {};
+    const lv = 'SABC'.includes(g.level) ? g.level : 'B';
+    return { ...it, ts: parseTs(it.ts), level: lv, category: g.category || '快讯', reason: g.reason || '' };
+  });
+  await env.ACCT_KV.put(NEWS_KV_KEY, JSON.stringify({
+    generated: new Date(Date.now() + 8 * 3600e3).toISOString().replace('T', ' ').slice(0, 19),
+    src: '新浪财经+同花顺', engine: 'CF边缘·智谱微批', items,
+  }));
+  await env.ACCT_KV.put(NEWS_FP_KEY, fp);
+  await saveLog('写入完成 n=' + items.length + ' ms=' + (Date.now() - t0));
+}
+
 function bjToday() {
   return new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
 }
@@ -320,6 +464,26 @@ export default {
       return new Response(JSON.stringify({ dispatch: status, ts: Date.now() }),
         { headers: { 'Content-Type': 'application/json', ...CORS } });
     }
+    /* v446：手动触发快讯驱动（排障用，需 CRON_KEY）。 */
+    if (u.pathname === '/__drivenews') {
+      if (!env.CRON_KEY || req.headers.get('X-MP-Key') !== env.CRON_KEY) {
+        return new Response('forbidden', { status: 403, headers: CORS });
+      }
+      const t0 = Date.now();
+      try {
+        let probe = {};
+        try { probe.sina = (await fetchSinaEdge()).length; } catch (e) { probe.sinaErr = String(e); }
+        try { probe.ths = (await fetchTHSEdge()).length; } catch (e) { probe.thsErr = String(e); }
+        await driveNewsCron(env);
+        const raw = await env.ACCT_KV.get(NEWS_KV_KEY);
+        return new Response(JSON.stringify({ probe, kvWritten: !!raw, ms: Date.now() - t0,
+          n: raw ? (JSON.parse(raw).items || []).length : 0 }),
+          { headers: { 'Content-Type': 'application/json', ...CORS } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: String(e && e.stack || e), ms: Date.now() - t0 }),
+          { status: 500, headers: { 'Content-Type': 'application/json', ...CORS } });
+      }
+    }
     if (u.pathname === '/breadth.json' || u.pathname === '/sse.json') {
       ctx.waitUntil(halfRepair(env));
       return proxy(RAW, 'breadth/data/' + u.pathname.slice(1), 300, req);
@@ -339,6 +503,11 @@ export default {
 
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
+      /* v446【CF 边缘 2 分钟快讯驱动】独立 cron，与 breadth/evolve 完全解耦。 */
+      if (event && event.cron === '*/2 * * * *') {
+        try { await driveNewsCron(env); } catch (e) { console.log('[news-cron] 异常: ' + e); }
+        return;
+      }
       /* v432【事件卡每日演进】UTC 00:00/12:00（北京 08:00/20:00）触发一次卡片提纯。
        * 用 KV 记录当天两次，避免同窗口重复触发。与 breadth 跑批完全解耦。 */
       const utcH = new Date().getUTCHours(), utcM = new Date().getUTCMinutes();
