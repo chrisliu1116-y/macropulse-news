@@ -93,8 +93,9 @@ async function llmGradeBatch(items, key, rules) {
     + (rules || '').slice(0, 6000)
     + '\n每条格式：{"id":0,"level":"S/A/B/C","category":"简短分类","reason":"≤15字"}'
     + '\nid必须原样回传，理由只针对本条。S只认已发生重大事件，纯行情波动=最B或C。';
+  // v448：24条微批实测本地16.5s、CF边缘更慢，20s太紧会abort→null。放宽到45s。
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 20000);
+  const timer = setTimeout(() => ctrl.abort(), 45000);
   try {
     const r = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
       method: 'POST', signal: ctrl.signal,
@@ -141,8 +142,9 @@ async function driveNewsCron(env) {
   if (!key) { await saveLog('无ZHIPU_KEY(secret)'); return; }
   await saveLog('有key,开始LLM');
   const rules = await env.ACCT_KV.get('mp_prompt_rules') || '';
-  // 取最近 24 条微批分级
-  const target = raw.slice(0, 24);
+  // v448：取最近 12 条微批分级（实测24条15.5s、小批1.4s，12条约7s）。
+  // 前端首屏可见≈10-15条，12条足够覆盖；条数越少 LLM 越快，端到端延迟越低。
+  const target = raw.slice(0, 12);
   const graded = await llmGradeBatch(target, key, rules);
   await saveLog('LLM结果=' + (graded ? graded.length : 'null'));
   // 【全断红灯状态】LLM 失败 = 降级本地规则；记录状态跃迁并触发 webhook（仅 up→down 一次）
@@ -504,22 +506,26 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
       /* v446【CF 边缘 2 分钟快讯驱动】独立 cron，与 breadth/evolve 完全解耦。 */
-      if (event && event.cron === '*/2 * * * *') {
+      if (event && (event.cron === '*/1 * * * *' || event.cron === '*/2 * * * *')) {
         try { await driveNewsCron(env); } catch (e) { console.log('[news-cron] 异常: ' + e); }
         return;
       }
-      /* v432【事件卡每日演进】UTC 00:00/12:00（北京 08:00/20:00）触发一次卡片提纯。
-       * 用 KV 记录当天两次，避免同窗口重复触发。与 breadth 跑批完全解耦。 */
-      const utcH = new Date().getUTCHours(), utcM = new Date().getUTCMinutes();
-      if ((utcH === 0 || utcH === 12) && utcM < 15) {
-        const slot = new Date().toISOString().slice(0, 10) + '-' + (utcH === 0 ? 'am' : 'pm');
+      /* v447【事件卡每日演进 · 黄金窗口】UTC 23:30（京07:30 早盘班）/ UTC 12:45（京20:45 晚盘班）。
+       * 用 event.cron 精确定点（不再靠 utcH 窗口猜），KV 记录当天两班避免重复。
+       * 早盘收割隔夜美股+美联储+欧美夜盘；晚盘覆盖20:30美国CPI/非农+白天亚太。
+       * 建卡窗口=过去24h游离S/核心A，挂在演进后由 evolve-events workflow 内执行。 */
+      const EVOLVE_CRONS = { '30 23 * * *': 'am', '45 12 * * *': 'pm' };
+      const evolveSlot = event && EVOLVE_CRONS[event.cron];
+      if (evolveSlot) {
+        const day = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+        const slot = day + '-' + evolveSlot;
         try {
           if (env.ACCT_KV && await env.ACCT_KV.get('mp_evolve_' + slot)) {
-            console.log('[cron] 卡片演进当日该时段已触发，跳过');
+            console.log('[cron] 卡片演进当日' + evolveSlot + '班已触发，跳过');
             return;
           }
           const es = await triggerEvolve(env);
-          console.log('[cron] 卡片演进 dispatch status=' + es);
+          console.log('[cron] 卡片演进 ' + evolveSlot + '班 dispatch status=' + es);
           if (env.ACCT_KV && (es >= 200 && es < 300)) {
             await env.ACCT_KV.put('mp_evolve_' + slot, String(Date.now()));
           }
