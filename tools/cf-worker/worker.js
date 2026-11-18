@@ -43,41 +43,7 @@ async function triggerEvolve(env) {
 const NEWS_KV_KEY = 'mp_news_all';
 const NEWS_FP_KEY = 'mp_news_fingerprint';
 
-// 抓新浪 7×24（JSONP→JSON）。非东财。
-async function fetchSinaEdge() {
-  const url = 'https://zhibo.sina.com.cn/api/zhibo/feed?page=1&page_size=30&zhibo_id=152&tag_id=0&dire=f&dpc=1';
-  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 12000);
-  try {
-  const r = await fetch(url, { signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://finance.sina.com.cn/7x24/' }, cf: { cacheTtl: 0 } });
-  const raw = await r.text();
-  const m = raw.match(/\(\s*(\{[\s\S]*\})\s*\)/);
-  const d = JSON.parse(m ? m[1] : raw);
-  const feed = (((d || {}).result || {}).data || {}).feed || {};
-  return ((feed.list) || []).map(it => {
-    const text = String(it.rich_text || it.content || '').replace(/<[^>]+>/g, '').trim();
-    if (!text) return null;
-    const mm = text.match(/^【(.+?)】\s*([\s\S]*)$/);
-    return { id: 'sn-' + (it.id || ''), title: (mm ? mm[1] : text).trim().slice(0, 60),
-      brief: (mm ? mm[2] : '').trim().slice(0, 200), ts: it.create_time || '', src: '新浪财经' };
-  }).filter(Boolean);
-  } finally { clearTimeout(tm); }
-}
-
-// 抓同花顺 7×24（CORS 全开，JSON）。非东财。
-async function fetchTHSEdge() {
-  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 12000);
-  try {
-  const r = await fetch('https://news.10jqka.com.cn/tapp/news/push/stock/?page=1&tag=&track=website&pagesize=30',
-    { signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://news.10jqka.com.cn/' }, cf: { cacheTtl: 0 } });
-  const d = await r.json();
-  const list = (((d || {}).data || {}).list) || d.data || [];
-  return (Array.isArray(list) ? list : []).map(it => ({
-    id: 'ths-' + (it.id || Math.random().toString(36).slice(2)),
-    title: String(it.title || '').trim().slice(0, 60),
-    brief: String(it.digest || '').trim().slice(0, 200), ts: it.ctime || it.rtime || '', src: '同花顺',
-  })).filter(x => x.title);
-  } finally { clearTimeout(tm); }
-}
+/*__NEWS_SOURCES__*/   // v452：部署时由 deploy_api.py 内联 news-sources.js（10源云端抓取）
 
 function parseTs(s) {
   const str = String(s || '').trim();
@@ -90,7 +56,7 @@ function parseTs(s) {
  * 修 v449 实现偏差：之前快讯链路只用了智谱一个源，智谱一挂就误报"AI已断开"。
  * 现与卡片链路一致：智谱+Gemini 有序降级，只有两个都挂才红灯/本地兜底。
  * 每次失败记详细原因到 log，供排查智谱频繁失败的根因。 */
-async function llmGradeBatch(items, zhipuKey, geminiKey, rules, logFn) {
+async function llmGradeBatch(items, zhipuKey, geminiKey, rules, logFn, force) {
   const note = logFn || (() => {});
   const batch = items.map((it, i) => ({ id: i, title: it.title, brief: it.brief }));
   const sys = '你是快讯审核编辑。用规则给每条快讯判级。只输出JSON数组，不要markdown。\n'
@@ -144,6 +110,12 @@ async function llmGradeBatch(items, zhipuKey, geminiKey, rules, logFn) {
   }
 
   // 有序降级：智谱失败→Gemini；两路都失败→返回 null
+  // force='gemini' 用于强制验收兜底通道（不写KV，仅测试端点用）
+  if (force === 'gemini') {
+    const out = await viaGemini();
+    note('LLM通道=gemini(强制验收)');
+    return out;
+  }
   try {
     const out = await viaZhipu();
     note('LLM通道=zhipu');
@@ -170,13 +142,17 @@ async function driveNewsCron(env) {
     try { await env.ACCT_KV.put('mp_news_cronlog', JSON.stringify({ ts: new Date().toISOString(), lines: log })); } catch (e) {}
   };
   await saveLog('start cron=' + (env.__cron || ''));
-  let raw = [];
-  try { const s = await fetchSinaEdge(); raw = raw.concat(s); await saveLog('sina=' + s.length); }
-  catch (e) { await saveLog('sina ERR ' + String(e)); }
-  try { const t = await fetchTHSEdge(); raw = raw.concat(t); await saveLog('ths=' + t.length); }
-  catch (e) { await saveLog('ths ERR ' + String(e)); }
-  /* v451：并入前端异步上报的全源新闻队列（财联社/金十/华尔街见闻等）。
-   * Pages 与 Worker 共用 ACCT_KV，队列互通。处理后清空，前端每轮重新喂未分级的。 */
+  /* v452【10源云端抓取】Worker 海外IP直接抓全部10源，不再依赖前端。
+   * 前端关闭也不影响云端持续攒池。源级容错：单源失败不影响其余。 */
+  let raw = [], srcDetail = [], okCount = 0;
+  try {
+    const res = await fetchAllCloudSources();
+    raw = res.items; srcDetail = res.detail; okCount = res.okCount;
+    await saveLog('10源抓到=' + raw.length + ' 成功源=' + okCount + '/10');
+    await saveLog('源明细:' + srcDetail.slice(0, 10).join(' '));
+  } catch (e) { await saveLog('10源抓取异常 ' + String(e)); }
+  if (!raw.length) { await saveLog('10源全空，短路'); return; }
+  /* v451 遗留：前端上报队列继续兼容消费（新架构下前端已不再上报，队列自然为空）。 */
   let ingested = [];
   let ingestIds = [];
   try {
@@ -559,6 +535,28 @@ export default {
         { headers: { 'Content-Type': 'application/json', ...CORS } });
     }
     /* v446：手动触发快讯驱动（排障用，需 CRON_KEY）。 */
+    /* 【验收端点】强制测 LLM 兜底通道：?force=gemini 绕开智谱直接走 Gemini，
+     * 证明双通道不是名义上的（需 CRON_KEY）。不写 KV。 */
+    if (u.pathname === '/__testllm') {
+      if (!env.CRON_KEY || req.headers.get('X-MP-Key') !== env.CRON_KEY) {
+        return new Response('forbidden', { status: 403, headers: CORS });
+      }
+      const force = u.searchParams.get('force') || '';
+      const t0 = Date.now();
+      try {
+        const rules = await env.ACCT_KV.get('mp_prompt_rules') || '';
+        const out = await llmGradeBatch(
+          [{ id: 0, title: '美联储意外降息50个基点', brief: '议息会议决定降息50bp' }],
+          env.ZHIPU_KEY, env.GEMINI_KEY, rules, () => {}, force);
+        return new Response(JSON.stringify({ force: force || 'zhipu-first',
+          channel: out && out.channel, ms: Date.now() - t0,
+          levels: out ? out.result.map(x => x.level) : null }),
+          { headers: { 'Content-Type': 'application/json', ...CORS } });
+      } catch (e) {
+        return new Response(JSON.stringify({ force, error: String(e && e.message || e), ms: Date.now() - t0 }),
+          { status: 500, headers: { 'Content-Type': 'application/json', ...CORS } });
+      }
+    }
     if (u.pathname === '/__drivenews') {
       if (!env.CRON_KEY || req.headers.get('X-MP-Key') !== env.CRON_KEY) {
         return new Response('forbidden', { status: 403, headers: CORS });
@@ -566,8 +564,8 @@ export default {
       const t0 = Date.now();
       try {
         let probe = {};
-        try { probe.sina = (await fetchSinaEdge()).length; } catch (e) { probe.sinaErr = String(e); }
-        try { probe.ths = (await fetchTHSEdge()).length; } catch (e) { probe.thsErr = String(e); }
+        try { const r = await fetchAllCloudSources(); probe.sources = r.detail; probe.total = r.items.length; }
+        catch (e) { probe.err = String(e); }
         await driveNewsCron(env);
         const raw = await env.ACCT_KV.get(NEWS_KV_KEY);
         return new Response(JSON.stringify({ probe, kvWritten: !!raw, ms: Date.now() - t0,

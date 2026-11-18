@@ -230,15 +230,20 @@ def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True):
         except Exception as e:
             errs.append('%s:%s' % (name, type(e).__name__))
         if verbose: print('[llm-heavy] %s failed, next' % name)
-    # 2) 智谱主力兜底（极速链同款，保证绝不中断）
+    # 2) 智谱重型兜底：glm-z1-flash 真推理模型（实测 2.0s、<think> 思考、JSON可解析）
+    #    2026-11-19 用户强制验收：绕过 Gemini 单独测这条，确认不是"名义双通道实际只用Gemini"。
     if _configured('ZHIPU_KEY'):
-        t = time.time()
-        try:
-            text, ch = _zhipu(ZHIPU_MODEL)(messages, max_tokens, timeout)
-            if verbose: print('[llm-heavy] 智谱兜底 %s ok %.1fs' % (ch, time.time() - t))
-            return text, ch + '(heavy-fallback)'
-        except Exception as e:
-            errs.append('zhipu:%s' % type(e).__name__)
+        for zm in ('glm-z1-flash', ZHIPU_MODEL):   # 推理模型优先，挂了退极速flash
+            t = time.time()
+            try:
+                text, ch = _zhipu(zm)(messages, max_tokens, timeout)
+                # 剥掉 glm-z1 的 <think>...</think> 思考段，只留最终输出
+                import re as _re
+                text = _re.sub(r'<think>[\s\S]*?</think>', '', text).strip()
+                if verbose: print('[llm-heavy] 智谱重型兜底 %s ok %.1fs' % (ch, time.time() - t))
+                return text, ch + '(heavy-fallback)'
+            except Exception as e:
+                errs.append('zhipu/%s:%s' % (zm, type(e).__name__))
     raise AllModelsFailed('; '.join(errs) if errs else 'no heavy channels available')
 
 if __name__ == '__main__':

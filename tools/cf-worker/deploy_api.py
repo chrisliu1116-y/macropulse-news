@@ -143,6 +143,11 @@ def main():
 
     print('[3/5] 上传 worker.js（module 格式用 multipart）')
     code = io.open(os.path.join(HERE, 'worker.js'), 'rb').read()
+    # v452：把10源云端抓取模块内联进 worker.js（Worker 单文件部署，无 import 本地文件）
+    src_mod = io.open(os.path.join(HERE, 'news-sources.js'), encoding='utf-8').read()
+    code = code.decode('utf-8').replace('/*__NEWS_SOURCES__*/', src_mod).encode('utf-8')
+    assert 'fetchAllCloudSources' in code.decode('utf-8'), '10源模块内联失败'
+    print('   已内联10源云端抓取模块 (%d 字节)' % len(src_mod))
     boundary = '----MP' + uuid.uuid4().hex
     meta = json.dumps({'main_module': 'worker.js',
                        'compatibility_date': '2026-11-10',
