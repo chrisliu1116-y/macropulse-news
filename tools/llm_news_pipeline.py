@@ -360,18 +360,17 @@ def grade_batch(batch, max_tokens=5000, use_llm=True, verbose=True):
         filled = not isinstance(r, dict)
         if filled:
             r = {}
-        # 对齐校验：用「公共前缀≥6字」判定，容忍 LLM 少抄1-2字，只拦真串位。
-        # 真串位(如 以色列AI入侵 写成 拍卖)前缀完全不同→公共前缀0→降级。
+        # 对齐校验（v444 修正）：got 是 want 的前缀即可（got 每位都等于 want 对应位），
+        # 容忍 LLM 少抄几字（新浪源实测只抄4字）。真串位(以色列AI→拍卖)首字就不同→降级。
         prefix_got = str(r.get('title_prefix', '')).strip()
         prefix_want = str(it['title'][:8]).strip()
-        def _common_prefix(a, b):
-            n = 0
-            for x, y in zip(a, b):
-                if x != y: break
-                n += 1
-            return n
-        # 老模型无此字段时不误伤；有字段但公共前缀<6才判失败
-        aligned = (not prefix_got) or (_common_prefix(prefix_got, prefix_want) >= 6)
+        def _is_subseq(a, b):
+            """a 是否为 b 的子序列（容忍跳字：LLM 抄前缀偶尔漏字）。"""
+            if not a: return False
+            it = iter(b)
+            return all(any(c == x for x in it) for c in a)
+        # 首字相同 + 是子序列 → 对齐；真串位首字不同→降级
+        aligned = (not prefix_got) or (prefix_want and prefix_got[0] == prefix_want[0] and _is_subseq(prefix_got, prefix_want))
         if not aligned or filled:
             if not filled:
                 align_fail_n += 1
