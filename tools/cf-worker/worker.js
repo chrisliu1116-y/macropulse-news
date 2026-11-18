@@ -131,20 +131,22 @@ async function driveNewsCron(env) {
   // 去重（按 id）
   const seen = new Set();
   raw = raw.filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return true; });
-  // 无新增短路：指纹 = 前20条 id 拼接
-  const fp = raw.slice(0, 20).map(x => x.id).join('|');
-  const oldFp = await env.ACCT_KV.get(NEWS_FP_KEY);
-  const hasProduct = await env.ACCT_KV.get(NEWS_KV_KEY);
-  await saveLog('fp=' + fp.slice(0, 40) + ' old=' + (oldFp || '').slice(0, 40) + ' hasProduct=' + !!hasProduct);
-  // 无新增短路：仅当已有产物且指纹相同时才跳过。首次(无产物)必须强制写一次。
-  if (oldFp === fp && hasProduct) { await saveLog('无新增短路'); return; }
+  /* v449【纯增量 + 60条滚动池】读旧池子 → 只挑池里没有的新条目送 LLM。
+   * 池子按 id 索引，保留最近 60 条已分级新闻。无新增 → 0 调用直接短路。 */
+  const POOL_KEY = 'mp_news_pool';
+  const POOL_MAX = 60;
+  let pool = [];
+  try { const p = await env.ACCT_KV.get(POOL_KEY); if (p) pool = JSON.parse(p); } catch (e) { pool = []; }
+  await saveLog('池子=' + pool.length + '条');
+  const poolIds = new Set(pool.map(x => x.id));
+  const fresh = raw.filter(x => !poolIds.has(x.id)).slice(0, 12);   // 最多12条/轮防突发
+  if (!fresh.length && pool.length) { await saveLog('无新增,0调用短路'); return; }
   const key = env.ZHIPU_KEY;   // 只用 Worker secret，KV 不存明文 key
   if (!key) { await saveLog('无ZHIPU_KEY(secret)'); return; }
-  await saveLog('有key,开始LLM');
   const rules = await env.ACCT_KV.get('mp_prompt_rules') || '';
-  // v448：取最近 12 条微批分级（实测24条15.5s、小批1.4s，12条约7s）。
-  // 前端首屏可见≈10-15条，12条足够覆盖；条数越少 LLM 越快，端到端延迟越低。
-  const target = raw.slice(0, 12);
+  // 首次(池空)取前12条建档；之后只送真正新增的 1~4 条 → LLM 2s 内
+  const target = fresh.length ? fresh : raw.slice(0, 12);
+  await saveLog('送LLM=' + target.length + '条(纯增量)');
   const graded = await llmGradeBatch(target, key, rules);
   await saveLog('LLM结果=' + (graded ? graded.length : 'null'));
   // 【全断红灯状态】LLM 失败 = 降级本地规则；记录状态跃迁并触发 webhook（仅 up→down 一次）
@@ -156,10 +158,20 @@ async function driveNewsCron(env) {
         reason: down ? '智谱+Google全部失效，回退本地规则' : 'LLM已恢复' }));
       const hook = env.ALERT_WEBHOOK_URL;
       if (hook && down) {
-        try { await fetch(hook, { method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: '🚨 MACRO PULSE：AI已断开·规则兜底（智谱+Google全失效，事件卡片与快讯分级暂用本地规则）', ts: Date.now() }) }); }
-        catch (e) { console.log('[news-cron] webhook失败: ' + e); }
+        // v449：兼容 Server酱 Turbo（form-urlencoded title/desp）与通用 JSON webhook
+        try {
+          const isSCT = /sctapi\.ftqq\.com/.test(hook);
+          await fetch(hook, isSCT ? {
+            method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'title=' + encodeURIComponent('🚨 MACRO PULSE AI已断开')
+              + '&desp=' + encodeURIComponent('智谱分级失败，快讯已回退本地规则。\n时间：'
+                + new Date(Date.now() + 8 * 3600e3).toISOString().replace('T', ' ').slice(0, 19))
+          } : {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: '🚨 MACRO PULSE：AI已断开·规则兜底', ts: Date.now() })
+          });
+          await saveLog('webhook已发');
+        } catch (e) { await saveLog('webhook失败: ' + String(e)); }
       }
       await saveLog('LLM状态跃迁 down=' + down);
     }
@@ -167,17 +179,26 @@ async function driveNewsCron(env) {
   if (!graded) { await saveLog('LLM无结果保留旧产物'); return; }
   const byId = {};
   graded.forEach(g => { byId[g.id] = g; });
-  const items = target.map((it, i) => {
+  const freshItems = target.map((it, i) => {
     const g = byId[i] || {};
     const lv = 'SABC'.includes(g.level) ? g.level : 'B';
     return { ...it, ts: parseTs(it.ts), level: lv, category: g.category || '快讯', reason: g.reason || '' };
   });
+  // 合并进滚动池：新条目在前，去重，按 ts 倒序，截断 60 条
+  const merged = freshItems.concat(pool.filter(p => !freshItems.some(f => f.id === p.id)));
+  const uniq = [];
+  const seen2 = new Set();
+  merged.forEach(x => { if (!seen2.has(x.id)) { seen2.add(x.id); uniq.push(x); } });
+  uniq.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const newPool = uniq.slice(0, POOL_MAX);
+  await env.ACCT_KV.put(POOL_KEY, JSON.stringify(newPool));
+  // 产物 = 整个池子（前端一次拿到60条映射，首屏0ms覆盖更全）
   await env.ACCT_KV.put(NEWS_KV_KEY, JSON.stringify({
     generated: new Date(Date.now() + 8 * 3600e3).toISOString().replace('T', ' ').slice(0, 19),
-    src: '新浪财经+同花顺', engine: 'CF边缘·智谱微批', items,
+    src: '新浪财经+同花顺', engine: 'CF边缘·智谱增量池', items: newPool,
+    newCount: freshItems.length, poolSize: newPool.length,
   }));
-  await env.ACCT_KV.put(NEWS_FP_KEY, fp);
-  await saveLog('写入完成 n=' + items.length + ' ms=' + (Date.now() - t0));
+  await saveLog('写入完成 新增' + freshItems.length + ' 池' + newPool.length + ' ms=' + (Date.now() - t0));
 }
 
 function bjToday() {
