@@ -169,7 +169,7 @@ async function driveNewsCron(env) {
   raw = raw.filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return true; });
   /* v462【省写卫生】砍掉 mp_news_pool 中间态——直接从 mp_news_all 的 items 读池子，
    * 每轮只在最后写一次 mp_news_all，严格 1 次 KV.put（原为3次：pool+all+cronlog）。 */
-  const POOL_MAX = 1000;
+  const POOL_MAX = 2000;  // v467：C级不入池后全是有效ABS，扩到2000覆盖更长时段
   const POOL_TTL_MS = 24 * 3600 * 1000;
   let pool = [];
   try {
@@ -264,7 +264,7 @@ async function driveNewsCron(env) {
   /* v464【池子覆盖】高频源(格隆汇/金十)每分钟几十条，几分钟就把1000条池子占满，
    * 导致5小时前的老新闻全被挤掉、贴不上AI标。改为按源配额裁剪：
    * 每源最多150条，保证各源24h新闻都有代表留在池里，不再被高频源独占。 */
-  const SRC_CAP = 150;
+  const SRC_CAP = 300;  // v467：配合POOL_MAX扩容，每源300条
   const perSrc = {};
   const balanced = [];
   for (const x of inWindow) {   // inWindow 已按 poolTs 倒序（新→旧）
