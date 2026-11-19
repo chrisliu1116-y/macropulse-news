@@ -530,8 +530,8 @@ export default {
       clearTimeout(hardTimer);
       try {
         let payload = { items: [] };
-        try { payload = await req.aj(); } catch (e) {}
-        const items = Array.isArray(payload.items) ? payload.items.slice(0, 5) : [];
+        try { payload = await req.json(); } catch (e) {}
+        const items = Array.isArray(payload.items) ? payload.items.slice(0, 15) : [];
         if (!items.length) return aj({ levels: [] });
         // 先查池子已分过的（标题前20字），命中的直接返回，不重复调 LLM
         const poolRaw = await env.ACCT_KV.get(NEWS_KV_KEY);
