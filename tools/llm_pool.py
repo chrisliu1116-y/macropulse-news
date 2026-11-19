@@ -184,6 +184,7 @@ def _gemini_heavy(model, thinking_cfg):
             parts.append({'text': m.get('content', '')})
         body = {'contents': [{'role': 'user', 'parts': parts}],
                 'generationConfig': {'maxOutputTokens': max_tokens,
+                                     'responseMimeType': 'application/json',   # v472: 从源头压制废话,事件卡专用
                                      'thinkingConfig': thinking_cfg() if callable(thinking_cfg) else thinking_cfg}}
         url = GEMINI_BASE + model + ':generateContent?key=' + key
         req = urllib.request.Request(url, data=json.dumps(body).encode(),

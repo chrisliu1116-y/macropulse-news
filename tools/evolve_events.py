@@ -109,33 +109,64 @@ def build_user_prompt(card, facts_text, odds_text, yesterday):
             f"请输出该事件卡的新头部 JSON：用官员表态/谈判动作/倾向性等叙事写简介，不写任何数字。")
 
 def extract_json(text):
-    """从 LLM 输出里抠出 JSON（容忍 ```json 包裹或前后文字）。"""
-    text = text.strip()
-    m = re.search(r'\{[\s\S]*\}', text)
-    if not m: return None
-    raw = m.group(0)
-    # 去掉可能的尾随逗号
-    raw = re.sub(r',\s*([}\]])', r'\1', raw)
-    try: return json.loads(raw)
-    except Exception: return None
+    """v472【弃用贪婪正则】按序：①剥离<think>标签 ②剥离markdown围栏 ③JSONDecoder.raw_decode括号配对提取。
+    杜绝思考过程中的 {} 干扰，容忍前后废话。"""
+    if not text:
+        return None
+    t = str(text)
+    # ① 剥离 <think>...</think>（含未闭合的 <think> 开头）
+    t = re.sub(r'<think>[\s\S]*?</think>', '', t, flags=re.I)
+    t = re.sub(r'<think>[\s\S]*$', '', t, flags=re.I)
+    # 也兼容 <|thought|> / 【思考】 等变体
+    t = re.sub(r'【思考】[\s\S]*?【/思考】', '', t)
+    # ② 剥离 markdown 代码围栏（```json ... ``` / ``` ... ```）
+    t = re.sub(r'```(?:json|JSON)?\s*', '', t)
+    t = t.replace('```', '')
+    # ③ 用 JSONDecoder.raw_decode 逐个候选 `{` 尝试，取第一个合法对象
+    dec = json.JSONDecoder()
+    for m in re.finditer(r'\{', t):
+        try:
+            obj, _ = dec.raw_decode(t[m.start():])
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            continue
+    return None
 
-def evolve(card, news, odds, yesterday, do_llm=True):
+
+def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
     sc = SCOPES[card]
     facts_text = '\n'.join('- ' + n for n in news[:30]) if news else '（今日无关联新闻）'
     prompt = build_user_prompt(card, facts_text, odds, yesterday)
+    # v472【保留旧状态】fallback 必须沿用上一轮真实状态，严禁硬编码"进行中/archived=false"
+    # 强行覆盖——否则已结束/已归档的事件会被重新激活。
+    _prev = prev_card if isinstance(prev_card, dict) else None
     fallback = {
-        'status': sc['baseline_status'],
-        'progress_line': '当前态势：等待今日数据',
-        'summary': yesterday or sc['core_subject'],
-        'facts': [], 'noisy_dropped': [], 'archived': False,
+        'status': (_prev or {}).get('status') or sc['baseline_status'],
+        'progress_line': (_prev or {}).get('progress_line') or '当前态势：等待今日数据',
+        'summary': (_prev or {}).get('summary') or sc['core_subject'],
+        'facts': (_prev or {}).get('facts') or [],
+        'noisy_dropped': [],
+        # 关键：保留上一轮 archived/dormant，绝不因为解析失败而复活事件
+        'archived': bool((_prev or {}).get('archived', False)),
+        'dormant': bool((_prev or {}).get('dormant', False)),
         'model_channel': 'local-rule',
     }
     if not do_llm:
         return fallback
     try:
-        text, ch = chat_heavy([{'role': 'system', 'content': SYS},
-                         {'role': 'user', 'content': prompt}], max_tokens=2000, timeout=100)
+        msgs = [{'role': 'system', 'content': SYS}, {'role': 'user', 'content': prompt}]
+        text, ch = chat_heavy(msgs, max_tokens=2000, timeout=100)
         out = extract_json(text)
+        # v472【解析失败降级重试】主通道 parse-failed → 换轻量通道 chat 重试1次
+        if not out:
+            try:
+                text2, ch2 = chat(msgs, max_tokens=2000, timeout=60)
+                out = extract_json(text2)
+                if out:
+                    ch = ch2 + '(retry-ok)'
+            except Exception:
+                pass
         if not out:
             fallback['model_channel'] = ch + '(parse-failed)'
             return fallback
@@ -242,7 +273,8 @@ def main():
             yesterday = prev[cid].get('summary', '')
         if not yesterday:
             yesterday = SCOPES[cid]['core_subject']
-        out = evolve(cid, news_map.get(cid, []), odds_default[cid], yesterday, not a.no_llm)
+        out = evolve(cid, news_map.get(cid, []), odds_default[cid], yesterday, not a.no_llm,
+                     prev_card=prev.get(cid) if isinstance(prev.get(cid), dict) else None)
         result['cards'][cid] = out
         print('[%s] channel=%s status=%s len=%s first=%s' % (
             cid, out.get('model_channel'), out.get('status'),
