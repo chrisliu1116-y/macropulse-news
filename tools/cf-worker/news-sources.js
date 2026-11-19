@@ -319,8 +319,13 @@ async function fetchSina() {
   // 兼容三种返回：JSONP(callback({...})) / 裸JSON / var xxx={...};
   // 有时外层还被包成JSON字符串（\"新华社\"变\\u65b0...），先剥一层。
   let body = raw.trim();
-  const i = body.indexOf('('), j = body.lastIndexOf(')');
-  if (i >= 0 && j > i) body = body.slice(i + 1, j);
+  // v463：JSONP 正文里可能含 ')'（如 "AIDC)..."），lastIndexOf(')') 会截错。
+  // 改为截到最后一个 '}'（JSON 对象必然以 } 结尾），再校验括号配对。
+  const i = body.indexOf('(');
+  if (i >= 0) {
+    const j = body.lastIndexOf('}');
+    if (j > i) body = body.slice(i + 1, j + 1);
+  }
   let d;
   try { d = JSON.parse(body); }
   catch (e1) {
@@ -358,7 +363,12 @@ async function fetchKZG() {
     const title = clean(t.title || '');
     if (!title) return null;
     const body = clean(String(t.htmlText || '').replace(/<[^>]+>/g, ' '));
-    return { id: 'kzg-' + String(t.id || Math.abs(hashStr(title))), ts: Number(t.gmtCreate || 0) || Date.now(),
+    // v463：gmtCreate 可能是秒(10位)或毫秒(13位)——秒级会让 ts 落在1970年被24h TTL淘汰，
+    // 这正是 KZG 从没入池的根因。统一换算到毫秒 + 异常兜底当前时间。
+    let ts = Number(t.gmtCreate || 0);
+    if (ts > 0 && ts < 1e12) ts *= 1000;
+    if (!ts || ts < Date.now() - 7 * 86400e3 || ts > Date.now() + 5 * 60e3) ts = Date.now();
+    return { id: 'kzg-' + String(t.id || Math.abs(hashStr(title))), ts,
       title, brief: body || title, src: '口罩哥KZG' };
   }).filter(Boolean);
 }
@@ -380,7 +390,10 @@ async function fetchTrump() {
     body = String(body).replace(/View image|View video|\s+/g, ' ').trim();
     if (!body || body.length < 8 || /^Image post from/i.test(body)) continue;
     const link = q(block, 'link');
-    out.push({ id: 'trump-' + Math.abs(hashStr(link || body)), ts: parseRssTime(q(block, 'pubDate')),
+    // v463：RSS pubDate 解析异常(过期/未来)时用当前时间兜底，避免被24h TTL淘汰
+    let ts = parseRssTime(q(block, 'pubDate'));
+    if (!ts || ts < Date.now() - 7 * 86400e3 || ts > Date.now() + 5 * 60e3) ts = Date.now();
+    out.push({ id: 'trump-' + Math.abs(hashStr(link || body)), ts,
       title: body.length > 90 ? body.slice(0, 90) + '…' : body, brief: body, src: '川普言论' });
     if (out.length >= 12) break;
   }

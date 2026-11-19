@@ -207,8 +207,11 @@ async function driveNewsCron(env) {
     }
     if (!added) break;                   // 所有源都取完了
   }
-  await saveLog('fresh取样=' + [...new Set(fresh.map(x => x.src))].join('/') + ' 条数=' + fresh.length
-    + ' 源数=' + new Set(fresh.map(x => x.src)).size + ' 总新增=' + freshAll.length);
+  const _freshBySrc = {};
+  fresh.forEach(x => { _freshBySrc[x.src || '?'] = (_freshBySrc[x.src || '?'] || 0) + 1; });
+  await saveLog('fresh取样=' + Object.entries(_freshBySrc).map(([k, v]) => k + ':' + v).join(' ')
+    + ' 条数=' + fresh.length + ' 总新增=' + freshAll.length
+    + ' 各源新增=' + Object.entries(bySrc).map(([k, v]) => k + ':' + v.length).join(' '));
   if (!fresh.length && pool.length) { await saveLog('无新增,0调用短路'); return; }
   const zhipuKey = env.ZHIPU_KEY, geminiKey = env.GEMINI_KEY;   // Worker secret，KV 不存明文 key
   if (!zhipuKey && !geminiKey) { await saveLog('无LLM key(secret)'); return; }
@@ -239,7 +242,7 @@ async function driveNewsCron(env) {
     const lv = 'SABC'.includes(g.level) ? g.level : 'B';
     // v462【隐患2】brief 截断100字：池子体积从589KB降到~200KB，前端贴标不需要全文
     const brief = String(it.brief || '').slice(0, 100);
-    return { ...it, brief, ts: parseTs(it.ts), level: lv,
+    return { ...it, brief, ts: parseTs(it.ts), poolTs: Date.now(), level: lv,
       category: g.category || '快讯', reason: String(g.reason || '').slice(0, 50) };
   });
   // 合并进滚动池：新条目在前，去重，按 ts 倒序，截断 60 条
@@ -247,10 +250,17 @@ async function driveNewsCron(env) {
   const uniq = [];
   const seen2 = new Set();
   merged.forEach(x => { if (!seen2.has(x.id)) { seen2.add(x.id); uniq.push(x); } });
-  uniq.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-  // 24h TTL 淘汰：超过 24 小时的旧条目直接丢弃；再按上限 1000 截断
+  // v463：按 poolTs(首次入池时间)排序/判TTL，不按新闻发布时间——
+  // 低频源(口罩哥/川普)一天发几条，抓到时本来就是昨天发布的，用ts判会被24h TTL误杀。
+  uniq.sort((a, b) => (b.poolTs || b.ts || 0) - (a.poolTs || a.ts || 0));
   const cutoff = Date.now() - POOL_TTL_MS;
-  const inWindow = uniq.filter(x => (x.ts || 0) >= cutoff);
+  const inWindow = uniq.filter(x => (x.poolTs || x.ts || 0) >= cutoff);
+  // 诊断：新分级条目里各源数量 + 被24h TTL淘汰的数量
+  const _freshSrc = {}; freshItems.forEach(x => { _freshSrc[x.src] = (_freshSrc[x.src] || 0) + 1; });
+  saveLog('分级后=' + Object.entries(_freshSrc).map(([k, v]) => k + ':' + v).join(' ')
+    + ' 超24h淘汰=' + (uniq.length - inWindow.length));
+  const _small = freshItems.filter(x => /KZG|川普/.test(x.src || ''));
+  if (_small.length) saveLog('小源ts=' + _small.slice(0, 4).map(x => x.src + ':' + x.ts).join(' ') + ' now=' + Date.now());
   const newPool = inWindow.slice(0, POOL_MAX);
   // v462：旧池条目里的 brief 也顺手截短（一次性瘦身，之后新条目都已是100字内）
   newPool.forEach(x => { if (x.brief && x.brief.length > 100) x.brief = x.brief.slice(0, 100); });
