@@ -185,6 +185,22 @@ def evolve(card, news, odds, yesterday, do_llm=True):
                         slen, first_len = len(s2), fs2
             except Exception:
                 pass
+        # v461【代码层硬兜底】重型模型偶尔连续两次输出过短摘要(19字)，重写也算不达标。
+        # 用 facts 事实清单补足到≥30字（事实是已核实内容，不是编造），再做首句≤45截断。
+        if len(out['summary']) < 30:
+            facts = out.get('facts') or []
+            extra = ''
+            for f in facts:
+                f = re.sub(r'[①②③④⑤]', '', str(f)).strip()
+                if f and f not in out['summary']:
+                    extra += ('。' if extra else '') + f
+                if len(out['summary']) + len(extra) >= 42:
+                    break
+            if extra:
+                cand = out['summary'].rstrip('。') + '。' + extra
+                if len(cand) <= 160:
+                    out['summary'] = cand
+                    slen = len(cand)
         out['_summary_len'] = slen
         out['_first_sent_len'] = first_len
         if not (40 <= slen <= 160) or first_len > 45:
