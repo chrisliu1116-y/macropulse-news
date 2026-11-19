@@ -150,9 +150,6 @@ async function driveNewsCron(env) {
    * 只在真正写产物时 flushLog 一次；无新增短路时也可用 ?debug 强制看日志，
    * 但默认不写 → 大幅降低 KV 写入（免费版 1000次/天硬上限）。 */
   const saveLog = (msg) => { log.push(msg); };
-  const flushLog = async () => {
-    try { await env.ACCT_KV.put('mp_news_cronlog', JSON.stringify({ ts: new Date().toISOString(), lines: log })); } catch (e) {}
-  };
   saveLog('start cron=' + (env.__cron || ''));
   /* v452【10源云端抓取】Worker 海外IP直接抓全部10源，不再依赖前端。
    * 前端关闭也不影响云端持续攒池。源级容错：单源失败不影响其余。 */
@@ -170,14 +167,15 @@ async function driveNewsCron(env) {
   // 去重（按 id）
   const seen = new Set();
   raw = raw.filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return true; });
-  /* v449【纯增量 + 60条滚动池】读旧池子 → 只挑池里没有的新条目送 LLM。
-   * 池子按 id 索引，保留最近 60 条已分级新闻。无新增 → 0 调用直接短路。 */
-  const POOL_KEY = 'mp_news_pool';
-  // v451：扩容至 1000 条（覆盖24h全量），保留 24 小时内的，超期按 TTL 淘汰
+  /* v462【省写卫生】砍掉 mp_news_pool 中间态——直接从 mp_news_all 的 items 读池子，
+   * 每轮只在最后写一次 mp_news_all，严格 1 次 KV.put（原为3次：pool+all+cronlog）。 */
   const POOL_MAX = 1000;
   const POOL_TTL_MS = 24 * 3600 * 1000;
   let pool = [];
-  try { const p = await env.ACCT_KV.get(POOL_KEY); if (p) pool = JSON.parse(p); } catch (e) { pool = []; }
+  try {
+    const p = await env.ACCT_KV.get(NEWS_KV_KEY);
+    if (p) { const d = JSON.parse(p); pool = Array.isArray(d.items) ? d.items : []; }
+  } catch (e) { pool = []; }
   /* v455【一次性净化】清掉时区bug(UTC当北京)留下的未来时间条目——这些脏数据
    * ts 在 8 小时后，按倒序截断时永远排最前，把正确时间的新数据挤掉。
    * 过滤条件：ts 超过当前时间 5 分钟即判定污染。 */
@@ -190,8 +188,27 @@ async function driveNewsCron(env) {
   await saveLog('池子=' + pool.length + '条');
   const poolIds = new Set(pool.map(x => x.id));
   const freshAll = raw.filter(x => !poolIds.has(x.id));
-  const fresh = freshAll.slice(0, 40);   // v453：放宽至40条/轮，加快24h存量攒池（军令状）
-  await saveLog('fresh前5=' + fresh.slice(0, 5).map(x => x.id).join(',') + ' 总新增=' + freshAll.length);
+  /* v462【隐患3根治·按源配额轮询】旧版 freshAll.slice(0,40) 按源顺序取前40，
+   * 金十48+见闻80+财联社200 直接占满，KZG/川普/深度等排在后面的源永远进不了池。
+   * 新版：先按 src 分组，每源轮流取2条，再补满40 → 10源都有代表入池。 */
+  const bySrc = {};
+  freshAll.forEach(x => { const s = x.src || '?'; (bySrc[s] = bySrc[s] || []).push(x); });
+  const srcNames = Object.keys(bySrc);
+  const fresh = [];
+  const QUOTA = 40;
+  for (let round = 0; fresh.length < QUOTA; round++) {
+    let added = 0;
+    for (const s of srcNames) {
+      const bucket = bySrc[s];
+      const idx = round * 2;             // 每源每轮取2条
+      for (let k = 0; k < 2 && idx + k < bucket.length && fresh.length < QUOTA; k++) {
+        fresh.push(bucket[idx + k]); added++;
+      }
+    }
+    if (!added) break;                   // 所有源都取完了
+  }
+  await saveLog('fresh取样=' + [...new Set(fresh.map(x => x.src))].join('/') + ' 条数=' + fresh.length
+    + ' 源数=' + new Set(fresh.map(x => x.src)).size + ' 总新增=' + freshAll.length);
   if (!fresh.length && pool.length) { await saveLog('无新增,0调用短路'); return; }
   const zhipuKey = env.ZHIPU_KEY, geminiKey = env.GEMINI_KEY;   // Worker secret，KV 不存明文 key
   if (!zhipuKey && !geminiKey) { await saveLog('无LLM key(secret)'); return; }
@@ -220,7 +237,10 @@ async function driveNewsCron(env) {
   const freshItems = target.map((it, i) => {
     const g = byId[i] || {};
     const lv = 'SABC'.includes(g.level) ? g.level : 'B';
-    return { ...it, ts: parseTs(it.ts), level: lv, category: g.category || '快讯', reason: g.reason || '' };
+    // v462【隐患2】brief 截断100字：池子体积从589KB降到~200KB，前端贴标不需要全文
+    const brief = String(it.brief || '').slice(0, 100);
+    return { ...it, brief, ts: parseTs(it.ts), level: lv,
+      category: g.category || '快讯', reason: String(g.reason || '').slice(0, 50) };
   });
   // 合并进滚动池：新条目在前，去重，按 ts 倒序，截断 60 条
   const merged = freshItems.concat(pool.filter(p => !freshItems.some(f => f.id === p.id)));
@@ -232,15 +252,17 @@ async function driveNewsCron(env) {
   const cutoff = Date.now() - POOL_TTL_MS;
   const inWindow = uniq.filter(x => (x.ts || 0) >= cutoff);
   const newPool = inWindow.slice(0, POOL_MAX);
-  await env.ACCT_KV.put(POOL_KEY, JSON.stringify(newPool));
-  // 产物 = 整个池子（前端一次拿到60条映射，首屏0ms覆盖更全）
+  // v462：旧池条目里的 brief 也顺手截短（一次性瘦身，之后新条目都已是100字内）
+  newPool.forEach(x => { if (x.brief && x.brief.length > 100) x.brief = x.brief.slice(0, 100); });
+  saveLog('写入完成 新增' + freshItems.length + ' 池' + newPool.length + ' ms=' + (Date.now() - t0));
+  /* v462【省写卫生·严格1次写】cronlog 嵌进 _meta，删独立 mp_news_cronlog 键、
+   * 删 mp_news_pool 写入。每轮有新增时只有这一次 KV.put。 */
   await env.ACCT_KV.put(NEWS_KV_KEY, JSON.stringify({
     generated: new Date(Date.now() + 8 * 3600e3).toISOString().replace('T', ' ').slice(0, 19),
-    src: '新浪财经+同花顺', engine: 'CF边缘·智谱增量池', items: newPool,
+    src: 'CF十源云端池', engine: 'CF边缘·智谱增量池', items: newPool,
     newCount: freshItems.length, poolSize: newPool.length,
+    _meta: { ts: new Date().toISOString(), lines: log, ms: Date.now() - t0 },
   }));
-  saveLog('写入完成 新增' + freshItems.length + ' 池' + newPool.length + ' ms=' + (Date.now() - t0));
-  await flushLog();   // 本轮有真实写入 → 才写一次日志 KV（省写卫生）
 }
 
 function bjToday() {

@@ -12,13 +12,34 @@ import json, os, sys, re, urllib.request
 
 EDGE_NEWS = 'https://macropulse-api.pages.dev/__news'
 
-# 每个事件卡的匹配关键词（命中任一即归入该卡；可按需扩充）
-EVENT_KEYWORDS = {
+# 兜底关键词（卡片没带 match_keywords 时才用，保证老卡/自动卡也有基本归类）
+FALLBACK_KEYWORDS = {
     'iran': ['伊朗', '霍尔木兹', '以色列', '胡塞', '也门', '沙特', '波斯湾', '原油', 'OPEC'],
     'fed': ['美联储', '鲍威尔', 'FOMC', '议息', '降息', '加息', '非农', 'CPI', 'PCE', '利率', '国债收益率'],
     'ukraine': ['乌克兰', '泽连斯基', '俄罗斯', '俄乌', '普京', '战俘', '停火'],
     'apec': ['APEC', '亚太经合', '习近平', '峰会', '领导人会晤', '经贸', '关税'],
 }
+
+def load_keywords(events_path):
+    """v462【隐患4】动态读所有活跃卡自带的 match_keywords；没带的用兜底词表。
+    这样自动建的新卡只要建卡时写了 match_keywords，第二天就能收到新快讯。"""
+    kws = {}
+    try:
+        d = json.load(open(events_path, encoding='utf-8'))
+        cards = d.get('cards', {})
+    except Exception as e:
+        print('[build_news_map] 读卡片词表失败: %s' % e)
+        cards = {}
+    all_ids = list(cards.keys()) or list(FALLBACK_KEYWORDS.keys())
+    for cid in all_ids:
+        c = cards.get(cid, {}) if isinstance(cards, dict) else {}
+        # 自动建卡时 LLM 已生成 newsKeys（高区分度关键词），优先用它；兼容 match_keywords
+        own = (c.get('match_keywords') or c.get('newsKeys')) if isinstance(c, dict) else None
+        if isinstance(own, list) and own:
+            kws[cid] = [str(x) for x in own][:20]
+        elif cid in FALLBACK_KEYWORDS:
+            kws[cid] = FALLBACK_KEYWORDS[cid]
+    return kws or FALLBACK_KEYWORDS
 
 def fetch_pool():
     try:
@@ -32,6 +53,9 @@ def fetch_pool():
 
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else 'data/events_news_today.json'
+    events_path = sys.argv[2] if len(sys.argv) > 2 else 'data/events_daily.json'
+    EVENT_KEYWORDS = load_keywords(events_path)
+    print('[build_news_map] 事件词表: ' + ', '.join('%s=%d词' % (k, len(v)) for k, v in EVENT_KEYWORDS.items()))
     items = fetch_pool()
     if not items:
         # CF不可达 → 保留旧文件（不覆盖成空，避免污染卡片）

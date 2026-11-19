@@ -60,15 +60,23 @@ export default {
     }
 
     // /__news —— 从 KV 读 CF 边缘 1 分钟增量的 LLM 分级成品（前端只读贴标）
+    // v462【隐患2瘦身】默认只吐贴标必需字段(id/title/level/cat/ts/src)，~50KB；
+    // ?full=1 才返回完整正文(brief/reason)，供 GHA 卡片演进使用。
     if (u.pathname === '/__news' || u.pathname === '/news.json') {
       if (!env.ACCT_KV) return json({ error: 'KV not bound', items: [] }, 503);
       const raw = await env.ACCT_KV.get('mp_news_all');
       if (!raw) return json({ error: 'news not synced', items: [] }, 404);
       try {
         const data = JSON.parse(raw);
-        // 带上 LLM 全断状态（前端据此亮红灯 🚨 AI已断开·规则兜底）
         try { data.llm_status = JSON.parse((await env.ACCT_KV.get('mp_llm_status')) || '{"down":false}'); }
         catch (e) { data.llm_status = { down: false }; }
+        if (u.searchParams.get('full') !== '1') {
+          data.items = (data.items || []).map(x => ({
+            id: x.id, title: x.title, ts: x.ts, src: x.src,
+            level: x.level, category: x.category || x.cat,
+          }));
+          delete data._meta;   // 运行日志不吐给前端
+        }
         return json(data);
       } catch (e) { return json({ error: 'bad news json', items: [] }, 500); }
     }

@@ -40,7 +40,7 @@ jobs:
           # v460：从 CF KV 的1000条实时分级池自动生成今日事件新闻映射。
           # 之前这份文件是静态的、没人更新 → 卡片内容十几个小时不变。
           # CF不可达时脚本自动保留旧映射，不会写空污染卡片。
-          python3 tools/build_news_map.py data/events_news_today.json
+          python3 tools/build_news_map.py data/events_news_today.json data/events_daily.json
           echo "今日新闻映射: $(python3 -c 'import json;d=json.load(open("data/events_news_today.json"));print(sum(len(v) for v in d.values()))') 条"
 
       - name: LLM 提纯重写卡片
