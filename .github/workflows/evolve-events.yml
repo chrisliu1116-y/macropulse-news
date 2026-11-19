@@ -33,18 +33,15 @@ jobs:
       - name: 安装依赖
         run: pip install -r requirements.txt
 
-      - name: 拉取今日关联新闻（复用现有抓取产物）
+      - name: 拉取今日关联新闻（从 CF 边缘池自动生成）
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # 从本仓库 data/events_news_today.json 读人工/抓取维护的今日新闻映射；
-          # 若不存在则用空映射（LLM 会标记"今日无实质进展"，不污染卡片）。
-          if [ -f data/events_news_today.json ]; then
-            echo "今日新闻映射存在: $(python3 -c 'import json;d=json.load(open("data/events_news_today.json"));print(sum(len(v) for v in d.values()))') 条"
-          else
-            echo "::warning::data/events_news_today.json 不存在，将用空映射"
-            echo '{}' > data/events_news_today.json
-          fi
+          # v460：从 CF KV 的1000条实时分级池自动生成今日事件新闻映射。
+          # 之前这份文件是静态的、没人更新 → 卡片内容十几个小时不变。
+          # CF不可达时脚本自动保留旧映射，不会写空污染卡片。
+          python3 tools/build_news_map.py data/events_news_today.json
+          echo "今日新闻映射: $(python3 -c 'import json;d=json.load(open("data/events_news_today.json"));print(sum(len(v) for v in d.values()))') 条"
 
       - name: LLM 提纯重写卡片
         env:
@@ -68,7 +65,10 @@ jobs:
             NEWS=llm_news_full.json
             echo "::notice::使用已有分级样本做建卡演练（非当日快讯）"
           else
-            NEWS=/dev/null
+            # v460修复：/dev/null 虽 exists()=True 但内容为空 → json.load 抛 JSONDecodeError。
+            # 写一个真实的空 JSON 文件，让建卡步骤正常走"无候选→跳过"分支。
+            NEWS=data/_empty_news.json
+            echo '{}' > "$NEWS"
             echo "::notice::无新闻分级结果，本次只做归档"
           fi
           python3 tools/event_incubator.py \
