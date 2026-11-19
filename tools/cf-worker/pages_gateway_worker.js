@@ -39,6 +39,26 @@ export default {
     /* v453【双轨独立】/__ingest 端点已删除——前端不再向边缘上报任何新闻，
      * 轨道B（Worker）完全靠自己云端抓10源喂LLM，与前端零耦合。 */
 
+    /* v456【秒级直算转发】POST /__news/fast-grade → 转发到 Worker（CF 内网可达），
+     * Worker 当场调智谱分级。Pages 网关自身没有 LLM key，只做透传。
+     * 8s 硬超时，失败返回空 levels，前端保持本地规则。 */
+    if (u.pathname === '/__news/fast-grade' && request.method === 'POST') {
+      const EDGE_FAST = 'https://macropulse-edge.mp-7962af18.workers.dev/__news/fast-grade';
+      try {
+        const bodyText = await request.text();
+        const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const tm = setTimeout(() => ctl && ctl.abort(), 8500);
+        try {
+          const r = await fetch(EDGE_FAST, { method: 'POST', signal: ctl ? ctl.signal : undefined,
+            headers: { 'Content-Type': 'application/json' }, body: bodyText });
+          const d = await r.json();
+          return json(d);
+        } finally { clearTimeout(tm); }
+      } catch (e) {
+        return json({ levels: [], err: String(e && e.message || e).slice(0, 60) });
+      }
+    }
+
     // /__news —— 从 KV 读 CF 边缘 1 分钟增量的 LLM 分级成品（前端只读贴标）
     if (u.pathname === '/__news' || u.pathname === '/news.json') {
       if (!env.ACCT_KV) return json({ error: 'KV not bound', items: [] }, 503);

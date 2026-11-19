@@ -18,7 +18,8 @@ const MIRROR = 'https://raw.githubusercontent.com/chrisliu1116-y/macropulse-mirr
  * v278 增加「半新半旧」：宽度今日但 sse 旧/缺时立即补跑，不等下一个 Cron 窗口。 */
 const GH_DISPATCH = 'https://api.github.com/repos/chrisliu1116-y/insum-cloud/actions/workflows/breadth.yml/dispatches';
 /* v432：事件卡片每日态势演进的 dispatch（北京 08:00/20:00 = UTC 00:00/12:00） */
-const GH_EVOLVE_DISPATCH = 'https://api.github.com/repos/chrisliu1116-y/insum-cloud/actions/workflows/evolve-events.yml/dispatches';
+// v456：卡片/新闻归属 macropulse-news 仓库（按项目分仓，不再混在 insum-cloud 跑批仓库）
+const GH_EVOLVE_DISPATCH = 'https://api.github.com/repos/chrisliu1116-y/macropulse-news/actions/workflows/evolve-events.yml/dispatches';
 
 async function triggerEvolve(env) {
   if (!env.GH_TOKEN) return 0;
@@ -145,11 +146,14 @@ async function driveNewsCron(env) {
   if (!env.ACCT_KV) { console.log('[news-cron] KV 未绑定，跳过'); return; }
   const t0 = Date.now();
   const log = [];
-  const saveLog = async (msg) => {
-    log.push(msg);
+  /* v457【省写卫生】saveLog 只累积内存，不每次写 KV（原来一轮写10+次）。
+   * 只在真正写产物时 flushLog 一次；无新增短路时也可用 ?debug 强制看日志，
+   * 但默认不写 → 大幅降低 KV 写入（免费版 1000次/天硬上限）。 */
+  const saveLog = (msg) => { log.push(msg); };
+  const flushLog = async () => {
     try { await env.ACCT_KV.put('mp_news_cronlog', JSON.stringify({ ts: new Date().toISOString(), lines: log })); } catch (e) {}
   };
-  await saveLog('start cron=' + (env.__cron || ''));
+  saveLog('start cron=' + (env.__cron || ''));
   /* v452【10源云端抓取】Worker 海外IP直接抓全部10源，不再依赖前端。
    * 前端关闭也不影响云端持续攒池。源级容错：单源失败不影响其余。 */
   let raw = [], srcDetail = [], okCount = 0;
@@ -235,7 +239,8 @@ async function driveNewsCron(env) {
     src: '新浪财经+同花顺', engine: 'CF边缘·智谱增量池', items: newPool,
     newCount: freshItems.length, poolSize: newPool.length,
   }));
-  await saveLog('写入完成 新增' + freshItems.length + ' 池' + newPool.length + ' ms=' + (Date.now() - t0));
+  saveLog('写入完成 新增' + freshItems.length + ' 池' + newPool.length + ' ms=' + (Date.now() - t0));
+  await flushLog();   // 本轮有真实写入 → 才写一次日志 KV（省写卫生）
 }
 
 function bjToday() {
@@ -515,6 +520,51 @@ export default {
       if (!rules) return new Response('rules not synced', { status: 404, headers: CORS });
       return new Response(rules, { headers: { 'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-store', ...CORS } });
+    }
+    /* v456【秒级直算】POST /__news/fast-grade：前端对未命中池的最新突发新闻，
+     * 并发送几条标题过来，当场调智谱分级并直接返回（不写KV，下轮cron自然覆盖）。
+     * 硬约束：8秒总超时 + aborted 静默失败，绝不卡住前端。 */
+    if (u.pathname === '/__news/fast-grade' && req.method === 'POST') {
+      const t0 = Date.now();
+      const hardTimer = setTimeout(() => {}, 1000); // 占位，真正超时用 Promise.race
+      clearTimeout(hardTimer);
+      try {
+        let payload = { items: [] };
+        try { payload = await req.aj(); } catch (e) {}
+        const items = Array.isArray(payload.items) ? payload.items.slice(0, 5) : [];
+        if (!items.length) return aj({ levels: [] });
+        // 先查池子已分过的（标题前20字），命中的直接返回，不重复调 LLM
+        const poolRaw = await env.ACCT_KV.get(NEWS_KV_KEY);
+        let pool = [];
+        try { pool = poolRaw ? JSON.parse(poolRaw).items || [] : []; } catch (e) {}
+        const byKey = {};
+        pool.forEach(x => { byKey[String(x.title || '').replace(/\s+/g, '').slice(0, 20)] = x; });
+        const todo = [], hit = [];
+        items.forEach((it, i) => {
+          const key = String(it.title || '').replace(/\s+/g, '').slice(0, 20);
+          if (byKey[key]) hit.push({ i: i, level: byKey[key].level, category: byKey[key].category });
+          else todo.push({ id: todo.length, title: it.title, brief: it.brief || '' });
+        });
+        let graded = [];
+        if (todo.length) {
+          const rules = await env.ACCT_KV.get('mp_prompt_rules') || '';
+          const out = await Promise.race([
+            llmGradeBatch(todo, env.ZHIPU_KEY, env.GEMINI_KEY, rules),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('fast-grade 8s timeout')), 8000)),
+          ]);
+          if (out && out.result) graded = out.result.map(g => {
+            const src = todo[g.id] || {};
+            const origIdx = items.findIndex(x => String(x.title || '').replace(/\s+/g, '').slice(0, 20)
+              === String(src.title || '').replace(/\s+/g, '').slice(0, 20));
+            return { i: origIdx, level: g.level, category: g.category, aiGraded: true };
+          });
+        }
+        const levels = hit.concat(graded);
+        return aj({ levels: levels, ms: Date.now() - t0 });
+      } catch (e) {
+        // 超时/aborted/任何异常 → 静默返回空，前端保持本地规则，绝不卡住
+        return aj({ levels: [], ms: Date.now() - t0, err: String(e && e.message || e).slice(0, 60) });
+      }
     }
     if (u.pathname === '/__cron') {
       if (!env.CRON_KEY || req.headers.get('X-MP-Key') !== env.CRON_KEY) {
