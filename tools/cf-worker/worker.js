@@ -244,9 +244,9 @@ async function driveNewsCron(env) {
     const brief = String(it.brief || '').slice(0, 100);
     return { ...it, brief, ts: parseTs(it.ts), poolTs: Date.now(), level: lv,
       category: g.category || '快讯', reason: String(g.reason || '').slice(0, 50) };
-  });
+  }).filter(x => x.level !== 'C');   // v465：C级前端根本不显示，不进池（原来320条C白占1/3池子）
   // 合并进滚动池：新条目在前，去重，按 ts 倒序，截断 60 条
-  const merged = freshItems.concat(pool.filter(p => !freshItems.some(f => f.id === p.id)));
+  const merged = freshItems.concat(pool.filter(p => p.level !== 'C' && !freshItems.some(f => f.id === p.id)));
   const uniq = [];
   const seen2 = new Set();
   merged.forEach(x => { if (!seen2.has(x.id)) { seen2.add(x.id); uniq.push(x); } });
