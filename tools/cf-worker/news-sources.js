@@ -32,8 +32,14 @@ function tsOf(v) {
   const s = String(v || '').trim();
   if (!s) return Date.now();
   if (/^\d+$/.test(s)) { const n = +s; return s.length > 11 ? n : n * 1000; }
+  // v455【时间bug修复】金十 "2026-11-19 10:16:04" / 东财 showTime 都是北京时间字符串，
+  // 无显式时区。CF Worker 运行时是 UTC，Date.parse 会当成 UTC → 显示时间多8小时
+  // （昨夜出现"10:16"固定时间、未来时间701条的根因）。这里按北京时间解析：先当UTC解析再减8h。
+  // 带显式时区的字符串（如 +0800）交给 Date.parse 自己处理，不减。
+  const hasTZ = /([+-]\d{2}:?\d{2}|Z|UTC|GMT)$/i.test(s);
   const t = Date.parse(s.replace(/-/g, '/'));
-  return isFinite(t) ? t : Date.now();
+  if (!isFinite(t)) return Date.now();
+  return hasTZ ? t : t - 8 * 3600 * 1000;
 }
 function parseRssTime(s) {
   const m = /(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?\s*([+-]\d{4})?/.exec(String(s || ''));
@@ -310,8 +316,20 @@ async function fetchEastmoney() {
 async function fetchSina() {
   const raw = await fetchText('https://zhibo.sina.com.cn/api/zhibo/feed?page=1&page_size=30&zhibo_id=152&tag_id=0&dire=f&dpc=1', 10000,
     { Referer: 'https://finance.sina.com.cn/7x24/' });
-  const i = raw.indexOf('('), j = raw.lastIndexOf(')');
-  const d = JSON.parse(i >= 0 && j > i ? raw.slice(i + 1, j) : raw);
+  // 兼容三种返回：JSONP(callback({...})) / 裸JSON / var xxx={...};
+  // 有时外层还被包成JSON字符串（\"新华社\"变\\u65b0...），先剥一层。
+  let body = raw.trim();
+  const i = body.indexOf('('), j = body.lastIndexOf(')');
+  if (i >= 0 && j > i) body = body.slice(i + 1, j);
+  let d;
+  try { d = JSON.parse(body); }
+  catch (e1) {
+    // 前面有 var 赋值 / 后面有分号 → 截取第一个 { 到最后一个 }
+    const k1 = body.indexOf('{'), k2 = body.lastIndexOf('}');
+    const inner = k1 >= 0 && k2 > k1 ? body.slice(k1, k2 + 1) : body;
+    d = JSON.parse(inner);   // 若是被包成字符串的情况，这里会解析成对象或字符串
+    if (typeof d === 'string') d = JSON.parse(d);
+  }
   const feed = (((d.result || {}).data || {}).feed) || {};
   return (feed.list || []).map(it => {
     const text = clean(it.rich_text || '');

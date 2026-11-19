@@ -70,7 +70,7 @@ async function llmGradeBatch(items, zhipuKey, geminiKey, rules, logFn, force) {
     if (!zhipuKey) throw new Error('no ZHIPU_KEY');
     for (let attempt = 0; attempt < 2; attempt++) {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 30000);
+      const timer = setTimeout(() => ctrl.abort(), 45000);
       try {
         const r = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
           method: 'POST', signal: ctrl.signal,
@@ -100,7 +100,7 @@ async function llmGradeBatch(items, zhipuKey, geminiKey, rules, logFn, force) {
   async function viaGemini() {
     if (!geminiKey) throw new Error('no GEMINI_KEY');
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
+    const timer = setTimeout(() => ctrl.abort(), 45000);
     try {
       const body = { contents: [{ role: 'user', parts: [{ text: sys + '\n\n' + userTxt }] }],
         generationConfig: { maxOutputTokens: 1200, thinkingConfig: { thinkingLevel: 'minimal' } } };
@@ -174,6 +174,15 @@ async function driveNewsCron(env) {
   const POOL_TTL_MS = 24 * 3600 * 1000;
   let pool = [];
   try { const p = await env.ACCT_KV.get(POOL_KEY); if (p) pool = JSON.parse(p); } catch (e) { pool = []; }
+  /* v455【一次性净化】清掉时区bug(UTC当北京)留下的未来时间条目——这些脏数据
+   * ts 在 8 小时后，按倒序截断时永远排最前，把正确时间的新数据挤掉。
+   * 过滤条件：ts 超过当前时间 5 分钟即判定污染。 */
+  const nowMs = Date.now();
+  const cleanPool = pool.filter(x => (x.ts || 0) <= nowMs + 5 * 60 * 1000);
+  if (cleanPool.length !== pool.length) {
+    await saveLog('净化未来时间脏数据 ' + (pool.length - cleanPool.length) + '条');
+    pool = cleanPool;
+  }
   await saveLog('池子=' + pool.length + '条');
   const poolIds = new Set(pool.map(x => x.id));
   const freshAll = raw.filter(x => !poolIds.has(x.id));
