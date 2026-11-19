@@ -261,7 +261,19 @@ async function driveNewsCron(env) {
     + ' 超24h淘汰=' + (uniq.length - inWindow.length));
   const _small = freshItems.filter(x => /KZG|川普/.test(x.src || ''));
   if (_small.length) saveLog('小源ts=' + _small.slice(0, 4).map(x => x.src + ':' + x.ts).join(' ') + ' now=' + Date.now());
-  const newPool = inWindow.slice(0, POOL_MAX);
+  /* v464【池子覆盖】高频源(格隆汇/金十)每分钟几十条，几分钟就把1000条池子占满，
+   * 导致5小时前的老新闻全被挤掉、贴不上AI标。改为按源配额裁剪：
+   * 每源最多150条，保证各源24h新闻都有代表留在池里，不再被高频源独占。 */
+  const SRC_CAP = 150;
+  const perSrc = {};
+  const balanced = [];
+  for (const x of inWindow) {   // inWindow 已按 poolTs 倒序（新→旧）
+    const s = x.src || '?';
+    perSrc[s] = perSrc[s] || 0;
+    if (perSrc[s] < SRC_CAP) { balanced.push(x); perSrc[s]++; }
+    if (balanced.length >= POOL_MAX) break;
+  }
+  const newPool = balanced;
   // v462：旧池条目里的 brief 也顺手截短（一次性瘦身，之后新条目都已是100字内）
   newPool.forEach(x => { if (x.brief && x.brief.length > 100) x.brief = x.brief.slice(0, 100); });
   saveLog('写入完成 新增' + freshItems.length + ' 池' + newPool.length + ' ms=' + (Date.now() - t0));
