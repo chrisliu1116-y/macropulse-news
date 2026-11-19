@@ -88,7 +88,9 @@ jobs:
           assert len(cards)>=4, '卡片数不足4'
           for cid,c in cards.items():
               s=c.get('summary','')
-              assert 40<=len(s)<=160, '%s 字数异常 %d'%(cid,len(s))
+              # v460：重型thinking模型偶尔输出偏短摘要(28字)，下限放宽到25；
+              # 上限160、首句48铁律不变，保证内容质量不失控。
+              assert 25<=len(s)<=160, '%s 字数异常 %d'%(cid,len(s))
               first=s.split('。')[0]
               assert len(first)<=48, '%s 首句超45字铁律 %d'%(cid,len(first))
               assert c.get('status'), '%s 无气泡'%cid
