@@ -111,5 +111,5 @@ jobs:
         if: inputs.mode != 'dry'
         run: |
           curl -fsS --max-time 20 \
-            "https://purge.jsdelivr.net/gh/chrisliu1116-y/insum-cloud@main/data/events_daily.json" \
+            "https://purge.jsdelivr.net/gh/chrisliu1116-y/macropulse-news@main/data/events_daily.json" \
             || echo "::warning::purge 失败"
