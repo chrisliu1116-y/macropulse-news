@@ -236,6 +236,15 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
         out['_first_sent_len'] = first_len
         if not (40 <= slen <= 160) or first_len > 45:
             out['_warn'] = 'summary %d chars, first sentence %d chars (target 40-160, first<=45)' % (slen, first_len)
+        # v487【归档单向锁·修APEC复活bug】LLM正常返回路径此前直接沿用LLM判的 archived，
+        # 导致昨天已归档(峰会闭幕)的卡今天因新新闻被LLM重判false又弹回主列表。
+        # 归档是用户/演进的终态决定：一旦上一轮 archived=true，本轮强制保持 true（内容仍可更新，
+        # 但卡片留在折叠区）。同理 dormant。fallback 路径已有此逻辑，这里补齐正常路径。
+        if _prev:
+            if _prev.get('archived'):
+                out['archived'] = True
+            if _prev.get('dormant'):
+                out['dormant'] = True
         return out
     except AllModelsFailed as e:
         fallback['model_channel'] = 'local-rule(all-llm-failed)'
