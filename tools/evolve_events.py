@@ -352,8 +352,24 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
             if have != out['summary']:
                 out['summary'] = have
                 slen = len(have)
+        # 【提交护栏安全网】GHA 的 assert len(first)<=48 / len(s)<=160 会整轮拒绝提交,
+        # 这里幂等兜底:首句超48就在最近的句号断开,全文超160就截到完整句,绝不因
+        # 单张卡的随机生成让整轮数据白跑。
+        _s = out.get('summary', '')
+        if len(_s) > 160:
+            _cut = _s.rfind('。', 0, 160)
+            _s = (_s[:_cut + 1] if _cut > 40 else _s[:160])
+        _parts = re.split(r'(?<=。)', _s)
+        if _parts and len(_parts[0]) > 48:
+            _p = _parts[0]
+            _c = _p.rfind('，', 0, 48)
+            _parts[0] = (_p[:_c] + '。') if _c > 15 else (_p[:45] + '。')
+            _s = ''.join(_parts)
+        if _s != out.get('summary', ''):
+            out['summary'] = _s
+            slen = len(_s)
         out['_summary_len'] = slen
-        out['_first_sent_len'] = first_len
+        out['_first_sent_len'] = len(re.split(r'[。！？]', out.get('summary', ''))[0])
         if not (40 <= slen <= 160) or first_len > 45:
             out['_warn'] = 'summary %d chars, first sentence %d chars (target 40-160, first<=45)' % (slen, first_len)
         # v487【归档单向锁·修APEC复活bug】LLM正常返回路径此前直接沿用LLM判的 archived，
