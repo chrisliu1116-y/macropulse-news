@@ -102,6 +102,7 @@ def cluster_candidates(candidates):
         '关税/贸易': ['关税', '贸易战', '进出口', '制裁', '出口管制'],
         '科技股': ['英特尔', '英伟达', '苹果', '微软', '特斯拉', '谷歌', '芯片', '半导体'],
         'APEC/峰会': ['APEC', '峰会', '领导人会议', 'G20', 'G7'],
+        '英伟达/黄仁勋': ['黄仁勋', '英伟达', 'NVIDIA', 'Jensen', 'CEO接任'],
     }
     groups = defaultdict(list)
     for it in candidates:

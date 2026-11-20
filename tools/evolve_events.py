@@ -51,6 +51,13 @@ SCOPES = {
         'exclude_noise': ['泛APEC历史科普', '地方文旅/安保花絮', '与本次会议无关的双边旧闻', '无实质动作的官员泛论'],
         'baseline_status': '进行中',
     },
+    'huang': {
+        'title': '黄仁勋事件跟踪', 'icon': '🧑‍💼',
+        'core_subject': '黄仁勋相关调查进展、其后续动向与英伟达 CEO 接任安排',
+        'stage_focus': ['相关调查的后续进展', '黄仁勋本人后续计划/回归动向', '英伟达 CEO 接任或管理层调整', '董事会与核心人才流失动态', '官方声明与权威媒体跟进'],
+        'exclude_noise': ['英伟达股价日常波动', 'GPU产品发布/技术科普', '与黄仁勋本人无关的公司新闻', '未经证实的传闻与股吧爆料(除非权威媒体跟进)'],
+        'baseline_status': '跟踪中',
+    },
 }
 
 SYS = """你是金融终端的事件情报编辑。严格按以下规则，把给定新闻提纯成一张事件卡的头部数据。
@@ -282,6 +289,7 @@ def main():
         'fed': 'Polymarket：12月加息25bp约97%；CME 96.8%；美债10Y约4.3%',
         'ukraine': 'Polymarket：停火合约无明确终局定价',
         'apec': 'Polymarket：暂无对应终局合约；亚太概念受会议预期提振',
+        'huang': 'Polymarket：暂无对应终局合约；英伟达管理层事件跟踪',
     }
     result = {'generated': bj_now_str(), 'cards': {},
               'model_channels': model_status()}

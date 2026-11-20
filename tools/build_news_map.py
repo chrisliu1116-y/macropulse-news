@@ -18,6 +18,7 @@ FALLBACK_KEYWORDS = {
     'fed': ['美联储', '鲍威尔', 'FOMC', '议息', '降息', '加息', '非农', 'CPI', 'PCE', '利率', '国债收益率'],
     'ukraine': ['乌克兰', '泽连斯基', '俄罗斯', '俄乌', '普京', '战俘', '停火'],
     'apec': ['APEC', '亚太经合', '习近平', '峰会', '领导人会晤', '经贸', '关税'],
+    'huang': ['黄仁勋', '英伟达', 'NVIDIA', 'Jensen Huang', 'CEO接任', '董事会'],
 }
 
 def load_keywords(events_path):
