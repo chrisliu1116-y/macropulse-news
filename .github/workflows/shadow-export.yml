@@ -1,0 +1,33 @@
+name: 影子分级明细导出(一次性)
+on:
+  workflow_dispatch:
+    inputs:
+      sample:
+        description: '样本条数(600/1200/2000)'
+        required: false
+        default: '600'
+permissions:
+  contents: read
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 影子分级
+        env:
+          ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
+          SHADOW_LIMIT: ${{ inputs.sample }}
+        run: timeout 1500 python3 tools/shadow_v2_grade.py 2>&1 | tee shadow.log
+      - name: 上传报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-v2-report
+          path: |
+            shadow_v2_report.json
+            shadow.log
+          if-no-files-found: warn
