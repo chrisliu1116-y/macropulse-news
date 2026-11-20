@@ -82,7 +82,7 @@
         "习近平：大国和，则世界安；大国斗，则世界乱",
         "习近平会见美国总统特朗普"
       ],
-      "archived": false,
+      "archived": true,
       "model_channel": "zhipu/glm-4-flash-250414(retry-ok)",
       "_lead_truncated": false,
       "summary": "领导人抵离有序进行：互联互通蓝图发布。王毅称深圳展望是APEC中国年重要成果，习近平主持中俄美元首会晤并就大国相处提出四点看法，多边互动频繁，经贸数智合作逐步落地。",
