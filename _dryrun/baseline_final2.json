@@ -1,0 +1,126 @@
+{
+  "generated": "2026-11-20 21:12",
+  "cards": {
+    "iran": {
+      "status": "谈判僵持",
+      "progress_line": "当前态势：谈判僵持阶段 · 德黑兰要求美方先解封解冻资产",
+      "lead": "谈判僵持：德黑兰要求美方先解封解冻资产",
+      "rest": "霍尔木兹海峡第三艘违规油轮触雷爆炸，革命卫队称两周触雷数创纪录；卡塔尔斡旋方案与欧洲官员称调解距协议仍有明显差距；伊朗外长访问阿曼讨论航道安全与恢复对话机制",
+      "facts": [
+        "伊朗外长访问阿曼讨论航道安全与恢复对话机制",
+        "霍尔木兹海峡第三艘违规油轮触雷爆炸",
+        "卡塔尔斡旋方案与欧洲官员称调解距协议仍有明显差距",
+        "路透：美伊间接谈判卡在先后顺序"
+      ],
+      "noisy_dropped": [],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "谈判僵持：德黑兰要求美方先解封解冻资产。霍尔木兹海峡第三艘违规油轮触雷爆炸，革命卫队称两周触雷数创纪录；卡塔尔斡旋方案与欧洲官员称调解距协议仍有明显差距；伊朗外长访问阿曼讨论航道安全与恢复对话机制",
+      "_summary_len": 98,
+      "_first_sent_len": 19
+    },
+    "fed": {
+      "status": "加息路径僵持",
+      "progress_line": "加息路径僵持：官员分歧显现",
+      "lead": "加息路径僵持：沃什提出智能时代政策预案（96.8%）",
+      "rest": "施密德警告通胀反弹风险，JOLTS数据强化紧缩预期",
+      "facts": [
+        "美联储主席沃什最新讲话：开始为超级智能时代制定政策预案",
+        "美联储副主席施密德：通胀朝错误方向移动 美联储还有更多工作要做",
+        "美国9月JOLTS职位空缺超预期"
+      ],
+      "noisy_dropped": [
+        "美联储12月加息25个基点的概率据CME美联储观察",
+        "美联储到明年1月累计加息50个基点概率升至",
+        "股票个股新闻（与利率无关）"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "加息路径僵持：沃什提出智能时代政策预案施密德警告通胀反弹风险，JOLTS数据强化紧缩预期",
+      "_summary_len": 44,
+      "_first_sent_len": 51,
+      "_warn": "summary 44 chars, first sentence 51 chars (target 40-160, first<=45)"
+    },
+    "ukraine": {
+      "status": "进行中·核心成果确认",
+      "progress_line": "当前态势：三方会谈确认战俘交换为三大成果之一，乌方拟推动欧洲E5加入谈判框架",
+      "lead": "进行中·核心成果确认：泽连斯基确认战俘交换为三大成果之一",
+      "rest": "乌方拟推动欧洲E5加入三方谈判框架遭俄方婉拒，俄总统助理乌沙科夫称下轮会谈日期尚未确定，欧洲官员质疑普京和平诚意",
+      "facts": [
+        "泽连斯基列出会谈后五项优先事项（含战俘交换与人质释放）",
+        "泽连斯基强调战俘交换是阿布扎比三方会谈最重要成果之一",
+        "乌方拟推动欧洲E5加入三方谈判框架",
+        "俄总统助理乌沙科夫：下轮会谈日期尚未确定"
+      ],
+      "noisy_dropped": [
+        "欧洲官员质疑普京无意和平 担忧谈判进程再次崩塌"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "进行中·核心成果确认：泽连斯基确认战俘交换为三大成果之一。乌方拟推动欧洲E5加入三方谈判框架遭俄方婉拒，俄总统助理乌沙科夫称下轮会谈日期尚未确定，欧洲官员质疑普京和平诚意",
+      "_summary_len": 85,
+      "_first_sent_len": 28
+    },
+    "apec": {
+      "status": "领导人会议已闭幕",
+      "progress_line": "三边会晤达成共识：APEC中国年成果清单通过",
+      "lead": "三边会晤达成共识：APEC中国年成果清单通过",
+      "rest": "习近平主持通过《亚太互联互通蓝图》及近50项经贸成果，数智合作占比过半；工商理事会创14项文件新高；亚太自贸区谈判进入文本磋商阶段，中方披露将推动数字贸易规则制定",
+      "facts": [
+        "习近平与普京、特朗普举行中俄美元首历史首次三边会晤",
+        "王毅宣布《深圳展望》作为APEC中国年核心成果",
+        "亚太经合组织互联互通蓝图正式发布",
+        "全年14项成果文件创APEC工商理事会历史新高"
+      ],
+      "noisy_dropped": [
+        "APEC第33次领导人非正式会议11月18日至19日在深圳举行",
+        "习近平17日在深圳会见越南苏林"
+      ],
+      "archived": true,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "三边会晤达成共识：APEC中国年成果清单通过。习近平主持通过《亚太互联互通蓝图》及近50项经贸成果，数智合作占比过半；工商理事会创14项文件新高；亚太自贸区谈判进入文本磋商阶段，中方披露将推动数字贸易规则制定",
+      "_summary_len": 104,
+      "_first_sent_len": 22
+    },
+    "huang": {
+      "status": "调查僵持",
+      "progress_line": "调查僵持：董事会评估CEO接任方案与黄仁勋回归传闻争议持续",
+      "lead": "调查僵持：黄仁勋回归传闻遭董事会争议",
+      "rest": "英伟达董事会正评估CEO接任方案，市场担忧核心人才流失，黄仁勋拟创办新半导体公司传闻引发回归计划争议",
+      "facts": [
+        "黄仁勋拟创办新半导体公司传闻引发回归计划争议",
+        "英伟达董事会正评估CEO接任方案",
+        "市场担忧核心人才流失",
+        "黄仁勋回归传闻遭董事会争议"
+      ],
+      "noisy_dropped": [],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "调查僵持：黄仁勋回归传闻遭董事会争议。英伟达董事会正评估CEO接任方案，市场担忧核心人才流失，黄仁勋拟创办新半导体公司传闻引发回归计划争议",
+      "_summary_len": 69,
+      "_first_sent_len": 18
+    }
+  },
+  "model_channels": [
+    {
+      "channel": "zhipu",
+      "key_env": "ZHIPU_KEY",
+      "configured": true
+    },
+    {
+      "channel": "gemini",
+      "key_env": "GEMINI_KEY",
+      "configured": true
+    },
+    {
+      "channel": "local-rule",
+      "key_env": null,
+      "configured": true
+    }
+  ]
+}
