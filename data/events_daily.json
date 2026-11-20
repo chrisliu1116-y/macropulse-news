@@ -1,142 +1,153 @@
 {
- "generated": "2026-11-20 19:14",
- "cards": {
-  "iran": {
-   "status": "谈判僵持·封锁持续",
-   "progress_line": "谈判僵持：美国扩大封锁，伊朗油轮转运应对",
-   "lead": "谈判僵持：美伊提案未破冰·核谈判暂缓",
-   "rest": "美国将封锁范围扩展至第三条海峡，伊朗革命卫队明确表示霍尔木兹问题解决前不进行核谈判。特朗普称新年后评估对伊政策，美以在军事行动时机上分歧显著。",
-   "facts": [
-    "美国将封锁范围扩展至第三条海峡",
-    "伊朗革命卫队明确表示霍尔木兹问题解决前不进行核谈判",
-    "特朗普称新年后评估对伊政策",
-    "美以在军事行动时机上分歧显著"
-   ],
-   "noisy_dropped": [
-    "胡塞武装袭击沙特利雅得金融区的一座大楼",
-    "胡塞武装袭击沙特主权财富基金总部！沙特誓言采取一切必要措施",
-    "也门胡塞武装称袭击了沙特利雅得的哈立德国王机场和哈米斯穆谢特的IR基地"
-   ],
-   "archived": false,
-   "model_channel": "zhipu/glm-z1-flash(deep-primary)",
-   "_lead_truncated": false,
-   "summary": "谈判僵持：美伊提案未破冰·核谈判暂缓。美国将封锁范围扩展至第三条海峡，伊朗革命卫队明确表示霍尔木兹问题解决前不进行核谈判。特朗普称新年后评估对伊政策，美以在军事行动时机上分歧显著。",
-   "_summary_len": 90,
-   "_first_sent_len": 18
+  "generated": "2026-11-20 19:36",
+  "cards": {
+    "iran": {
+      "status": "封锁升级·提案僵持",
+      "progress_line": "封锁升级与转运应对持续对峙，美伊提案未获突破",
+      "lead": "封锁升级·美伊转运僵持，核谈判条件未改",
+      "rest": "伊斯兰革命卫队重申霍尔木兹海峡问题解决前暂停核谈判，美国扩大封锁范围迫使伊朗油轮转运，美以就行动计划分歧持续，联军成功拦截胡塞武装导弹",
+      "facts": [
+        "伊斯兰革命卫队称霍尔木兹海峡问题解决前不会进行核谈判",
+        "特朗普表示不急于伊朗问题决策，新年后再看情况",
+        "美以双方就行动时机存在分歧",
+        "联军拦截胡塞武装向沙特南部发射的弹道导弹"
+      ],
+      "noisy_dropped": [
+        "胡塞武装袭击沙特利雅得金融区大楼",
+        "胡塞武装袭击沙特利雅得机场",
+        "WTI/布伦特原油结算价",
+        "美国战事花费超亿美元"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "封锁升级·美伊转运僵持，核谈判条件未改。伊斯兰革命卫队重申霍尔木兹海峡问题解决前暂停核谈判，美国扩大封锁范围迫使伊朗油轮转运，美以就行动计划分歧持续，联军成功拦截胡塞武装导弹",
+      "_summary_len": 87,
+      "_first_sent_len": 19
+    },
+    "fed": {
+      "status": "12月加息路径博弈加剧",
+      "progress_line": "核心博弈：鹰派官员AI冲击论VS就业通胀平衡论，CME定价升至97.8%",
+      "lead": "加息路径博弈升级：杰斐逊称AI冲击经济VS古尔斯比强调就业通胀平衡",
+      "rest": "副主席杰斐逊连续释放AI冲击供给端和需求端的政策信号，但明确反对调整通胀目标；经济数据派古尔斯比则重申就业市场稳定但通胀仍处高位，要求维持紧缩节奏；FOMC 12月22日会议前市场定价已达97.8%，票委分歧集中在AI冲击量化评估与就业数据验证",
+      "facts": [
+        "副主席杰斐逊称人工智能对经济供给端和需求端均构成冲击",
+        "古尔斯比强调美国就业市场稳定但通胀远高于目标",
+        "CME利率决议定价升至97.8%",
+        "FOMC 12月22日举行"
+      ],
+      "noisy_dropped": [
+        "黄金五连跌与铜价承压相关报道",
+        "CNH HIBOR利率续升动态",
+        "中国财政部/进出口行债券发行详情",
+        "泛市场评论与交运板块配置价值分析"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "加息路径博弈升级：杰斐逊称AI冲击经济VS古尔斯比强调就业通胀平衡。副主席杰斐逊连续释放AI冲击供给端和需求端的政策信号，但明确反对调整通胀目标；经济数据派古尔斯比则重申就业市场稳定但通胀仍处高位，要求维持紧缩节奏；FOMC 12月22日会议前市场定价已达97.8%，票委分歧集中在AI冲击量化评估与就业数据验证",
+      "_summary_len": 156,
+      "_first_sent_len": 33
+    },
+    "ukraine": {
+      "status": "北约资格谈判僵局·欧洲参与僵持",
+      "progress_line": "僵持：北约资格方案遭俄乌反对，欧洲参与未达成共识",
+      "lead": "北约资格谈判僵局：俄乌反对美方领土换北约方案",
+      "rest": "库什纳称俄方同意欧洲参与多边谈判，但俄乌均明确反对美方提出的'若乌克兰割让领土可入北约'方案，特朗普称普京希望结束战争但未获俄方行动呼应，欧洲国家要求扩大参与但俄方坚持仅限俄美乌三方",
+      "facts": [
+        "库什纳称俄罗斯同意欧洲参与多边谈判",
+        "俄乌均明确反对美方领土换北约方案",
+        "特朗普称普京希望结束战争"
+      ],
+      "noisy_dropped": [
+        "无人机残骸坠落外交部院事件",
+        "卢克石油资产谈判期限延长"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "北约资格谈判僵局：俄乌反对美方领土换北约方案。库什纳称俄方同意欧洲参与多边谈判，但俄乌均明确反对美方提出的'若乌克兰割让领土可入北约'方案，特朗普称普京希望结束战争但未获俄方行动呼应，欧洲国家要求扩大参与但俄方坚持仅限俄美乌三方",
+      "_summary_len": 114,
+      "_first_sent_len": 22
+    },
+    "apec": {
+      "status": "领导人双边会晤密集进行阶段",
+      "progress_line": "领导人抵离与会晤密集推进，中俄美元首会晤完成，互联互通蓝图发布",
+      "lead": "领导人双边会晤密集推进：中俄美元首会晤完成，互联互通蓝图发布",
+      "rest": "习近平今日完成与泰、新、印尼、澳、美等多国领导人会晤，其中中俄美元首会晤达成气候与经贸合作共识。APEC互联互通蓝图正式发布，明确2027年自贸区扩容路径，下届东道主交接程序启动",
+      "facts": [
+        "习近平完成与泰、新、印尼、澳、美领导人双边会晤",
+        "中俄美元首会晤达成气候与经贸合作共识",
+        "APEC互联互通蓝图正式发布"
+      ],
+      "noisy_dropped": [
+        "芝加哥联储主席关税通胀言论",
+        "泛论性官员表态",
+        "重复性新闻标题"
+      ],
+      "archived": true,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "领导人双边会晤密集推进：中俄美元首会晤完成，互联互通蓝图发布。习近平今日完成与泰、新、印尼、澳、美等多国领导人会晤，其中中俄美元首会晤达成气候与经贸合作共识。APEC互联互通蓝图正式发布，明确2027年自贸区扩容路径，下届东道主交接程序启动",
+      "_summary_len": 120,
+      "_first_sent_len": 30,
+      "_auto_archived": true,
+      "archived_at": "2026-11-20"
+    }
   },
-  "fed": {
-   "status": "加息路径分歧显现·官员表态密集",
-   "progress_line": "加息路径分歧显现，副主席杰斐逊明确反对调整通胀目标，古尔斯比强调就业稳定但通胀压力持续",
-   "lead": "加息路径分歧显现：副主席杰斐逊反对调整通胀目标",
-   "rest": "古尔斯比指出就业市场稳定但通胀‘远高于’目标，CME定价反映加息预期，FOMC纪要显示超半数票委倾向维持高利率",
-   "facts": [
-    "副主席杰斐逊明确表示对改变通胀目标不感兴趣",
-    "古尔斯比强调就业市场稳定但通胀‘远高于’目标"
-   ],
-   "noisy_dropped": [
-    "黄金铜承压相关新闻",
-    "中国债券发行细节",
-    "A股配置价值分析"
-   ],
-   "archived": false,
-   "model_channel": "zhipu/glm-z1-flash(deep-primary)",
-   "_lead_truncated": false,
-   "summary": "加息路径分歧显现：副主席杰斐逊反对调整通胀目标。古尔斯比指出就业市场稳定但通胀‘远高于’目标，CME定价反映加息预期，FOMC纪要显示超半数票委倾向维持高利率",
-   "_summary_len": 79,
-   "_first_sent_len": 23
-  },
-  "ukraine": {
-   "status": "僵持阶段·北约资格成核心分歧",
-   "progress_line": "僵持阶段：北约资格成核心分歧，俄方同意欧洲参与多边谈判",
-   "lead": "俄美乌会谈僵持：北约资格成核心分歧，俄方同意欧洲参与多边谈判",
-   "rest": "美方提出两套乌克兰方案，要求割让领土换北约资格，库什纳证实俄方同意欧洲参与多边机制，但俄方重申不会讨论海上停火，战俘交换协议仍待协调",
-   "facts": [
-    "库什纳证实俄罗斯同意欧洲参与多边谈判",
-    "美方提出乌克兰加入北约两套方案（含领土割让条件）",
-    "特朗普称普京希望结束战争（AXIOS）",
-    "卢克石油国际资产谈判期限延长至12月19日"
-   ],
-   "noisy_dropped": [
-    "无人机残骸坠落外交部院内（3次重复）",
-    "前线互袭事件与市场评论"
-   ],
-   "archived": false,
-   "model_channel": "zhipu/glm-z1-flash(deep-primary)",
-   "_lead_truncated": false,
-   "summary": "俄美乌会谈僵持：北约资格成核心分歧，俄方同意欧洲参与多边谈判。美方提出两套乌克兰方案，要求割让领土换北约资格，库什纳证实俄方同意欧洲参与多边机制，但俄方重申不会讨论海上停火，战俘交换协议仍待协调",
-   "_summary_len": 97,
-   "_first_sent_len": 30
-  },
-  "apec": {
-   "status": "领导人抵离与会晤进行中",
-   "progress_line": "领导人抵离与会晤进行中，中美元首会晤暂未安排，互联互通蓝图发布",
-   "lead": "领导人抵离与会晤进行中，互联互通蓝图发布",
-   "rest": "中美元首会晤暂未安排，习近平与泰印新澳等国领导人举行双边会晤，习近平就大国相处提出四点看法，下届东道主交接工作启动",
-   "facts": [
-    "亚太经合组织互联互通蓝图发布",
-    "习近平与泰印新澳等国领导人举行双边会晤",
-    "习近平就大国如何正确相处提出4点看法"
-   ],
-   "noisy_dropped": [
-    "芝加哥联储主席古尔斯比称关税对通胀影响消退",
-    "重复的习近平会见新加坡总理黄循财"
-   ],
-   "archived": true,
-   "model_channel": "zhipu/glm-z1-flash(deep-primary)",
-   "_lead_truncated": false,
-   "summary": "领导人抵离与会晤进行中，互联互通蓝图发布。中美元首会晤暂未安排，习近平与泰印新澳等国领导人举行双边会晤，习近平就大国相处提出四点看法，下届东道主交接工作启动",
-   "_summary_len": 78,
-   "_first_sent_len": 20,
-   "_locked_at": "2026-11-20 19:32"
-  }
- },
- "model_channels": [
-  {
-   "channel": "zhipu",
-   "key_env": "ZHIPU_KEY",
-   "configured": true
-  },
-  {
-   "channel": "gemini",
-   "key_env": "GEMINI_KEY",
-   "configured": true
-  },
-  {
-   "channel": "local-rule",
-   "key_env": null,
-   "configured": true
-  }
- ],
- "archive": {},
- "incubator_log": [
-  {
-   "date": "2026-11-20",
-   "theme": "贵金属",
-   "n_candidates": 5,
-   "decision": "rejected",
-   "reason": "无Polymarket活跃合约(严格模式拒绝建卡)",
-   "channel": "zhipu/glm-z1-flash(deep-primary)(no-poly-contract)"
-  },
-  {
-   "date": "2026-11-20",
-   "theme": "科技股",
-   "n_candidates": 6,
-   "decision": "rejected",
-   "reason": "多事件混杂",
-   "channel": "zhipu/glm-z1-flash(deep-primary)"
-  },
-  {
-   "date": "2026-11-20",
-   "theme": "原油/能源",
-   "n_candidates": 5,
-   "decision": "rejected",
-   "reason": "纯行情/单点数据占比60%(负面清单硬拦截)",
-   "rejected_titles": [
-    "布伦特原油日内涨幅达1.5%，报93.39美元/桶。",
-    "WTI原油日内涨幅达1%，报83.14美元/桶。",
-    "英国10月柴油价格创历史新高"
-   ]
-  }
- ],
- "archive_policy_log": []
+  "model_channels": [
+    {
+      "channel": "zhipu",
+      "key_env": "ZHIPU_KEY",
+      "configured": true
+    },
+    {
+      "channel": "gemini",
+      "key_env": "GEMINI_KEY",
+      "configured": true
+    },
+    {
+      "channel": "local-rule",
+      "key_env": null,
+      "configured": true
+    }
+  ],
+  "archive": {},
+  "incubator_log": [
+    {
+      "date": "2026-11-20",
+      "theme": "贵金属",
+      "n_candidates": 5,
+      "decision": "rejected",
+      "reason": "无Polymarket活跃合约(严格模式拒绝建卡)",
+      "channel": "zhipu/glm-z1-flash(deep-primary)(no-poly-contract)"
+    },
+    {
+      "date": "2026-11-20",
+      "theme": "科技股",
+      "n_candidates": 6,
+      "decision": "rejected",
+      "reason": "多领域分散事件",
+      "channel": "zhipu/glm-z1-flash(deep-primary)"
+    },
+    {
+      "date": "2026-11-20",
+      "theme": "原油/能源",
+      "n_candidates": 5,
+      "decision": "rejected",
+      "reason": "纯行情/单点数据占比60%(负面清单硬拦截)",
+      "rejected_titles": [
+        "布伦特原油日内涨幅达1.5%，报93.39美元/桶。",
+        "WTI原油日内涨幅达1%，报83.14美元/桶。",
+        "英国10月柴油价格创历史新高"
+      ]
+    }
+  ],
+  "archive_policy_log": [
+    {
+      "action": "archive",
+      "card": "apec",
+      "reason": "终局完结"
+    }
+  ]
 }
