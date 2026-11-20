@@ -58,18 +58,15 @@ jobs:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
         run: |
-          # 有新闻分级结果才尝试建卡；没有也照常做归档/休眠/清理
-          if [ -f data/daily_news_graded.json ]; then
+          # v501修复：build_news_map.py 已从 CF 池顺手导出当日 S/A 分级条目，
+          # 替换掉之前读不到的旧贴标产物(daily_news_graded/llm_news_full)链路断裂问题。
+          if [ -s data/daily_news_graded.json ]; then
             NEWS=data/daily_news_graded.json
-          elif [ -f llm_news_full.json ]; then
-            NEWS=llm_news_full.json
-            echo "::notice::使用已有分级样本做建卡演练（非当日快讯）"
+            echo "::notice::建卡输入: $(python3 -c 'import json;d=json.load(open("data/daily_news_graded.json"));print(len(d.get("results",[])))' ) 条当日高优快讯"
           else
-            # v460修复：/dev/null 虽 exists()=True 但内容为空 → json.load 抛 JSONDecodeError。
-            # 写一个真实的空 JSON 文件，让建卡步骤正常走"无候选→跳过"分支。
             NEWS=data/_empty_news.json
-            echo '{}' > "$NEWS"
-            echo "::notice::无新闻分级结果，本次只做归档"
+            echo '{"results":[]}' > "$NEWS"
+            echo "::notice::CF池无当日高优快讯，本次只做归档"
           fi
           python3 tools/event_incubator.py \
             --news "$NEWS" \
@@ -104,9 +101,22 @@ jobs:
             echo "数据无变化，跳过提交"
           else
             git add data/events_daily.json
-            git commit -m "data: 事件卡片态势演进 $(TZ=Asia/Shanghai date +%Y-%m-%d\ %H:%M)"
-            git pull --rebase origin main || true
-            git push
+            # v501修复: 先rebase再commit(原顺序commit后pull因unstaged改动冲突);
+            # 只暂存目标文件避免把build_news_map导出的json一起带进来。
+            git -c user.name="evolve-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              rebase origin main || {
+                echo "::warning::rebase冲突，改用ours策略重试"
+                git -c user.name="evolve-bot" rebase --abort 2>/dev/null || true
+                git -c user.name="evolve-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                  rebase -X ours origin main || true
+              }
+            git -c user.name="evolve-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "data: 事件卡片态势演进 $(TZ=Asia/Shanghai date +%Y-%m-%d\ %H:%M)"
+            git push origin HEAD:main || {
+              echo "::warning::push失败，拉取后重试一次"
+              git -c user.name="evolve-bot" pull --rebase origin main || true
+              git push origin HEAD:main
+            }
             echo "已提交 events_daily.json"
           fi
 

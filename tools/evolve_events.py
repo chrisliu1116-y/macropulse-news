@@ -156,15 +156,16 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
         return fallback
     try:
         msgs = [{'role': 'system', 'content': SYS}, {'role': 'user', 'content': prompt}]
-        text, ch = chat_heavy(msgs, max_tokens=2000, timeout=100)
+        text, ch = chat_heavy(msgs, max_tokens=4000, timeout=100)
         out = extract_json(text)
-        # v472【解析失败降级重试】主通道 parse-failed → 换轻量通道 chat 重试1次
+        # v501【用户拍板:严禁降级轻量模型】解析失败也用重型通道重试,
+        # 不再调 chat()(含 glm-4-flash/flash-lite),换一条重型重试1次。
         if not out:
             try:
-                text2, ch2 = chat(msgs, max_tokens=2000, timeout=60)
+                text2, ch2 = chat_heavy(msgs, max_tokens=4000, timeout=100)
                 out = extract_json(text2)
                 if out:
-                    ch = ch2 + '(retry-ok)'
+                    ch = ch2 + '(heavy-retry-ok)'
             except Exception:
                 pass
         if not out:
@@ -205,7 +206,7 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
                           + '。请按倒金字塔重写：第一句≤45字直接给核心结果，全文40~160字按信息密度自适应，只输出完整JSON。')
             try:
                 text2, ch2 = chat_heavy([{'role': 'system', 'content': SYS},
-                                   {'role': 'user', 'content': fix_prompt}], max_tokens=2000, timeout=100)
+                                   {'role': 'user', 'content': fix_prompt}], max_tokens=4000, timeout=100)
                 out2 = extract_json(text2)
                 if out2 and out2.get('summary'):
                     s2 = re.sub(r'[①②③④⑤]', '', out2['summary']).strip()

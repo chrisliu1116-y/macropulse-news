@@ -147,13 +147,15 @@ def chat(messages, max_tokens=300, timeout=30, verbose=True):
 #     · 2.5-pro / 2.5-flash   → 404 no longer available to new users
 #     · gemini-3-flash-preview → ✅ 200，thinkingLevel:high 生效(thought tokens=288, 3.8s)
 # 故把实测可用的 3-flash-preview 放首位，其余按用户指定顺序兜底，智谱最后兜底。
+# v501【用户拍板锁死重型思考模式】用户要求:事件卡每天仅3次、不追速度、
+# 严禁降级 glm-4-flash/flash-lite 等快速模型。实测(2026-11-20):
+#   · gemini-3.1-pro-preview → 429 额度满；gemini-2.5-pro → 404 新用户不可用
+#   · 唯一可用且能深度思考的是 gemini-3-flash-preview(thinkingLevel:high)
+# 故最终顺序:智谱 glm-z1-flash(真推理<think>) 主 → Gemini flash-preview 备(开high)。
+# 其余 flash/pro 一律不进重型链。
 HEAVY_CHAIN = [
-    # (名字, 模型, 思考参数构造器)
+    # (名字, 模型, 思考参数构造器) —— 仅留实测可用且开思考的 Gemini 备胎
     ('gemini/gemini-3-flash-preview', 'gemini-3-flash-preview', lambda: {'thinkingLevel': 'high'}),
-    ('gemini/gemini-3.8-flash',      'gemini-3.8-flash',      lambda: {'thinkingLevel': 'high'}),
-    ('gemini/gemini-3.6-flash',      'gemini-3.6-flash',      lambda: {'thinkingLevel': 'high'}),
-    ('gemini/gemini-2.5-pro',        'gemini-2.5-pro',        lambda: {'thinkingBudget': 8192}),
-    ('gemini/gemini-2.5-flash',      'gemini-2.5-flash',      lambda: {'thinkingBudget': 8192}),
 ]
 
 def probe_models():
@@ -214,6 +216,18 @@ def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True):
     if verbose:
         print('[llm-heavy] 探测到 %d 模型, 可用重型 %d 个' % (len(names), len(heavy)))
     errs = []
+    # 0) v501: 智谱 glm-z1-flash 真推理模型作【主通道】(用户拍板:不追速度、只要深度归纳)
+    if _configured('ZHIPU_KEY'):
+        t = time.time()
+        try:
+            text, ch = _zhipu('glm-z1-flash')(messages, max_tokens, timeout)
+            import re as _re
+            text = _re.sub(r'<think>[\s\S]*?</think>', '', text).strip()
+            if verbose: print('[llm-heavy] 智谱 glm-z1-flash(deep) ok %.1fs' % (time.time() - t))
+            return text, ch + '(deep-primary)'
+        except Exception as e:
+            errs.append('zhipu/glm-z1-flash:%s' % type(e).__name__)
+            if verbose: print('[llm-heavy] 智谱重型主通道失败, 转Gemini备')
     # 1) Gemini 重型链（仅当该模型在探测名单里才尝试；探测失败则不限制，交给 404/429 兜底）
     for name, model, tcfg in HEAVY_CHAIN:
         if not _configured('GEMINI_KEY'):
@@ -234,7 +248,7 @@ def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True):
     # 2) 智谱重型兜底：glm-z1-flash 真推理模型（实测 2.0s、<think> 思考、JSON可解析）
     #    2026-11-19 用户强制验收：绕过 Gemini 单独测这条，确认不是"名义双通道实际只用Gemini"。
     if _configured('ZHIPU_KEY'):
-        for zm in ('glm-z1-flash', ZHIPU_MODEL):   # 推理模型优先，挂了退极速flash
+        for zm in ('glm-z1-flash',):   # v501: 只保留真推理模型,严禁降级glm-4-flash
             t = time.time()
             try:
                 text, ch = _zhipu(zm)(messages, max_tokens, timeout)

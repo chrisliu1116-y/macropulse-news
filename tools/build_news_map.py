@@ -61,6 +61,37 @@ def main():
         # CF不可达 → 保留旧文件（不覆盖成空，避免污染卡片）
         print('[build_news_map] CF池为空/不可达，保留现有映射')
         return 0
+    # v501【顺手导出建卡器输入】event_incubator 期望 {"results":[{title,level,card_id,is_dup,ts,title_idx}]}
+    # 之前它读的 daily_news_graded.json 是已下线的全量贴标产物,链路断裂导致永远空输入。
+    # 这里用同一份 CF 池条目直接生成,避免重复拉取。只取 S/A + 过去24h + 轻量标题去重。
+    try:
+        import time as _t, re as _re
+        cutoff = (_t.time() - 24 * 3600) * 1000
+        seen = set(); results = []
+        for i, it in enumerate(items):
+            if it.get('level') not in ('S', 'A'):
+                continue
+            ts = it.get('ts') or 0
+            if ts and ts < cutoff:
+                continue
+            title = str(it.get('title') or '').strip()
+            if not title:
+                continue
+            tkey = _re.sub(r'\s+', '', title)[:30]
+            if tkey in seen:
+                continue
+            seen.add(tkey)
+            results.append({'title': title, 'level': it['level'],
+                            'card_id': 'none', 'is_dup': False,
+                            'ts': ts, 'title_idx': 'cf_%s' % str(it.get('id') or i)[:20]})
+        graded_path = 'data/daily_news_graded.json'
+        os.makedirs(os.path.dirname(graded_path) or '.', exist_ok=True)
+        with open(graded_path, 'w', encoding='utf-8') as f:
+            json.dump({'results': results, 'sample': results[:20],
+                       'gradedAt': _t.strftime('%Y-%m-%d %H:%M:%S')}, f, ensure_ascii=False)
+        print('[build_news_map] 已导出建卡输入: %d 条 S/A 到 %s' % (len(results), graded_path))
+    except Exception as e:
+        print('[build_news_map] 建卡输入导出失败(不影响映射): %s' % e)
     result = {k: [] for k in EVENT_KEYWORDS}
     seen = set()   # 跨源重复标题去重（同一条新闻常在多源出现）
     for it in items:
