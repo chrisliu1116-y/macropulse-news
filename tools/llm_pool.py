@@ -177,34 +177,71 @@ def probe_models():
     except Exception:
         return [], []
 
+def _gemini_keys():
+    """v507 多Key轮询:兼容 GEMINI_KEY / GEMINI_API_KEY / GEMINI_API_KEYS(逗号分隔)。
+    按出现顺序去重,遇到429切下一个Key。绝不打印key明文。"""
+    raw = []
+    for env in ('GEMINI_KEY', 'GEMINI_API_KEY', 'GEMINI_API_KEYS'):
+        v = os.environ.get(env, '') or ''
+        for k in v.split(','):
+            k = k.strip()
+            if k and k not in raw:
+                raw.append(k)
+    return raw
+
 def _gemini_heavy(model, thinking_cfg, temperature=None):
-    """重型 Gemini 单次调用（深度思考），from OpenAI-style messages → Gemini contents。"""
+    """重型 Gemini 单次调用(深度思考,多Key轮询防429)。
+    内部按 _gemini_keys() 顺序试:429立即切下一个Key;全部429/失败才抛,
+    让上层 _chat_heavy_once 进入60分钟阶梯退避。"""
     def call(messages, max_tokens, timeout):
-        key = os.environ.get('GEMINI_KEY', '')
-        if not key: raise RuntimeError('no GEMINI_KEY')
-        # 合并 system+user 到 prompt（Gemini generateContent 无独立 system 字段这里兼容）
+        keys = _gemini_keys()
+        if not keys: raise RuntimeError('no gemini key (GEMINI_KEY/GEMINI_API_KEY/GEMINI_API_KEYS)')
         parts = []
         for m in messages:
             parts.append({'text': m.get('content', '')})
         body = {'contents': [{'role': 'user', 'parts': parts}],
                 'generationConfig': {'maxOutputTokens': max_tokens,
-                                     'responseMimeType': 'application/json',   # v472: 从源头压制废话,事件卡专用
+                                     'responseMimeType': 'application/json',
                                      'thinkingConfig': thinking_cfg() if callable(thinking_cfg) else thinking_cfg,
                                      **({'temperature': temperature} if temperature is not None else {})}}
-        url = GEMINI_BASE + model + ':generateContent?key=' + key
-        req = urllib.request.Request(url, data=json.dumps(body).encode(),
-            headers={'Content-Type': 'application/json'})
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            d = json.loads(r.read().decode())
-        # 深度思考开启后 parts[0] 可能是 thought(true) 无 text；取第一个有 text 的 part
-        parts = (d.get('candidates') or [{}])[0].get('content', {}).get('parts', [])
-        text = ''
-        for p in parts:
-            if p.get('text') and not p.get('thought'):
-                text = p['text']; break
-        if not text:
-            raise RuntimeError('no text part (thinking only?): ' + json.dumps(parts)[:120])
-        return text, 'gemini/' + model + '(deep)'
+        last = None
+        for ki, key in enumerate(keys):
+            url = GEMINI_BASE + model + ':generateContent?key=' + key
+            req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                headers={'Content-Type': 'application/json'})
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    d = json.loads(r.read().decode())
+            except urllib.error.HTTPError as e:
+                last = e
+                code = e.code
+                # v507 打印具体状态码(区分429限流与503过载),不打印key
+                if code == 429:
+                    print('[llm-heavy] gemini key#%d HTTP429 限流, 切下一个key (%d/%d)' % (ki+1, ki+1, len(keys)))
+                    continue   # 429优先切下一个Key
+                if code == 503:
+                    print('[llm-heavy] gemini key#%d HTTP503 过载' % (ki+1))
+                else:
+                    print('[llm-heavy] gemini key#%d HTTP%d' % (ki+1, code))
+                continue
+            except Exception as e:
+                last = e
+                print('[llm-heavy] gemini key#%d 异常 %s' % (ki+1, type(e).__name__))
+                continue
+            # 解析返回
+            ps = (d.get('candidates') or [{}])[0].get('content', {}).get('parts', [])
+            text = ''
+            for pp in ps:
+                if pp.get('text') and not pp.get('thought'):
+                    text = pp['text']; break
+            if not text:
+                last = RuntimeError('no text part (thinking only?)')
+                continue
+            return text, 'gemini/' + model + '(deep)'
+        # 全部Key失败:保留最后一个异常的类型与状态码给上层退避判断
+        if isinstance(last, urllib.error.HTTPError):
+            raise urllib.error.HTTPError(last.url, last.code, 'all %d gemini keys failed: HTTP%d' % (len(keys), last.code), last.headers, last.fp)
+        raise RuntimeError('all %d gemini keys failed: %s' % (len(keys), type(last).__name__ if last else 'none'))
     return call
 
 def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True, temperature=None, allow_zhipu=True):
@@ -224,7 +261,7 @@ def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True, tempe
     # 而gemini在apec第3次表现极佳。智谱退为备用+最后兜底。
     # 0) Gemini 重型主通道（仅当该模型在探测名单里才尝试；探测失败则不限制，交给兜底）
     for name, model, tcfg in HEAVY_CHAIN:
-        if not _configured('GEMINI_KEY'):
+        if not _gemini_keys():
             break
         if heavy and model not in heavy:   # 探测成功但此模型不在名单 → 跳过
             continue
@@ -236,9 +273,11 @@ def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True, tempe
             return text, ch + '(deep-primary)'
         except urllib.error.HTTPError as e:
             errs.append('%s:HTTP%s' % (name, e.code))
+            if verbose: print('[llm-heavy] %s 主通道失败 HTTP%d (全部key试尽)' % (name, e.code))
         except Exception as e:
             errs.append('%s:%s' % (name, type(e).__name__))
-        if verbose: print('[llm-heavy] %s failed, next' % name)
+            if verbose: print('[llm-heavy] %s 主通道失败 %s (全部key试尽)' % (name, type(e).__name__))
+        # 不再打印笼统的 failed,next(上面已打印具体状态码)
     # 1) 智谱 glm-z1-flash 降为备用通道（allow_zhipu=False 时跳过=纯Gemini）
     if allow_zhipu and _configured('ZHIPU_KEY'):
         t = time.time()

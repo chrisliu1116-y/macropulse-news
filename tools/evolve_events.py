@@ -319,9 +319,9 @@ def main():
                 result['cards'][cid] = out
                 print('[%s] SKIP archived/dormant (保留昨日内容)' % cid)
                 continue
-        # v506【防Gemini免费版429】卡与卡之间间隔10秒,避免连发触发RPM限流
+        # v506【防Gemini免费版429】卡与卡之间间隔25秒,避免连发触发RPM限流
         if _ci > 0:
-            time.sleep(10)
+            time.sleep(25)
         yesterday = ''
         if cid in prev and isinstance(prev[cid], dict):
             yesterday = prev[cid].get('summary', '')
