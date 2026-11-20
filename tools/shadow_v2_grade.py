@@ -63,9 +63,13 @@ for st in range(0,len(items),BATCH):
             for g in out:
                 i=g.get('id')
                 if isinstance(i,int) and 0<=i<len(part):
-                    results.append({'id':part[i].get('id'),'title':part[i]['title'],'ts':part[i].get('ts'),
+                    import datetime as _dt
+                    _ts=part[i].get('ts') or 0
+                    _tm=_dt.datetime.fromtimestamp(_ts/1000,_dt.timezone(_dt.timedelta(hours=8))).strftime('%m-%d %H:%M') if _ts else ''
+                    results.append({'id':part[i].get('id'),'title':part[i]['title'],'ts':_ts,'time':_tm,
                       'level':g.get('level'),'s_code':g.get('s_code'),'is_dup':g.get('is_dup'),
-                      'dup_of':g.get('dup_of'),'reason':str(g.get('reason',''))[:60]})
+                      'dup_of':g.get('dup_of'),'reason':str(g.get('reason',''))[:80],
+                      'title_prefix':str(g.get('title_prefix',''))[:40]})
             break
         except Exception as e:
             tag('批',st,'失败',attempt,str(e)[:80]);time.sleep(3)
@@ -89,7 +93,15 @@ tag('=== 完成 用时%.0fs ==='%(time.time()-T0))
 
 report={'generated':time.strftime('%Y-%m-%d %H:%M:%S'),'source':NEWS_URL,
   'sample_n':len(items),'graded_n':len(results),'dist':dict(dist),
-  'S':S[:30],'A':A[:50],'is_dup_count':dups,'elapsed_s':round(time.time()-T0,1)}
+  'S':S[:30],'A':A[:50],'is_dup_count':dups,'elapsed_s':round(time.time()-T0,1),
+  'all_results':results}   # v502: 全量明细(标题/级别/s_code/is_dup/原因)
+# 去重后独立事件统计(回答"S级16条是否真有16个事件")
+_indep={}
+for x in results:
+    if x.get('is_dup'):continue
+    lv=x.get('level');_indep[lv]=_indep.get(lv,0)+1
+report['dist_independent']=_indep
+tag('=== 去重后独立事件 ===',dict(_indep))
 with open('shadow_v2_report.json','w',encoding='utf-8') as f:
     json.dump(report,f,ensure_ascii=False,indent=2)
 tag('报告已写 shadow_v2_report.json')
