@@ -18,7 +18,7 @@ FALLBACK_KEYWORDS = {
     'fed': ['美联储', '鲍威尔', 'FOMC', '议息', '降息', '加息', '非农', 'CPI', 'PCE', '利率', '国债收益率'],
     'ukraine': ['乌克兰', '泽连斯基', '俄罗斯', '俄乌', '普京', '战俘', '停火'],
     'apec': ['APEC', '亚太经合', '习近平', '峰会', '领导人会晤', '经贸', '关税'],
-    'huang': ['黄仁勋', '英伟达', 'NVIDIA', 'Jensen Huang', 'CEO接任', '董事会'],
+    'huang': ['黄仁勋', '英伟达', 'NVIDIA', 'Jensen Huang', 'CEO接任'],
 }
 
 def load_keywords(events_path):
@@ -62,6 +62,8 @@ def main():
         # CF不可达 → 保留旧文件（不覆盖成空，避免污染卡片）
         print('[build_news_map] CF池为空/不可达，保留现有映射')
         return 0
+    # v502【输入硬倒序】每卡最多12条,若不显式排序,池顺序一变最新主线进展就会被截断。
+    items = sorted(items, key=lambda x: x.get('ts') or 0, reverse=True)
     # v501【顺手导出建卡器输入】event_incubator 期望 {"results":[{title,level,card_id,is_dup,ts,title_idx}]}
     # 之前它读的 daily_news_graded.json 是已下线的全量贴标产物,链路断裂导致永远空输入。
     # 这里用同一份 CF 池条目直接生成,避免重复拉取。只取 S/A + 过去24h + 轻量标题去重。
@@ -85,6 +87,8 @@ def main():
             results.append({'title': title, 'level': it['level'],
                             'card_id': 'none', 'is_dup': False,
                             'ts': ts, 'title_idx': 'cf_%s' % str(it.get('id') or i)[:20]})
+        # v502: 按 ts 倒序(最新在前),确保 evolve_events.py 的 news[:30] 截断不会漏掉最新核心进展
+        results.sort(key=lambda x: x.get('ts') or 0, reverse=True)
         graded_path = 'data/daily_news_graded.json'
         os.makedirs(os.path.dirname(graded_path) or '.', exist_ok=True)
         with open(graded_path, 'w', encoding='utf-8') as f:

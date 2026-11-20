@@ -1,0 +1,16 @@
+[llm-heavy] 探测到 50 模型, 可用重型 30 个
+[llm-heavy] 智谱 glm-z1-flash(deep) ok 20.9s
+[iran] channel=zhipu/glm-z1-flash(deep-primary) status=谈判僵持·封锁升级 len=52 first=23
+[llm-heavy] 探测到 50 模型, 可用重型 30 个
+[llm-heavy] 智谱 glm-z1-flash(deep) ok 11.8s
+[fed] channel=zhipu/glm-z1-flash(deep-primary) status=利率决议冲刺阶段 len=65 first=16
+[llm-heavy] 探测到 50 模型, 可用重型 30 个
+[llm-heavy] 智谱 glm-z1-flash(deep) ok 15.9s
+[ukraine] channel=zhipu/glm-z1-flash(deep-primary) status=核心分歧升级·欧洲拟参与多边会谈 len=60 first=25
+[llm-heavy] 探测到 50 模型, 可用重型 30 个
+[llm-heavy] 智谱 glm-z1-flash(deep) ok 11.2s
+[apec] channel=zhipu/glm-z1-flash(deep-primary) status=多边互动深化·成果文件初定 len=65 first=17
+[llm-heavy] 探测到 50 模型, 可用重型 30 个
+[llm-heavy] 智谱 glm-z1-flash(deep) ok 5.7s
+[huang] channel=zhipu/glm-z1-flash(deep-primary) status=跟踪中 len=17 first=16
+已写 _dryrun/events_daily_after.json

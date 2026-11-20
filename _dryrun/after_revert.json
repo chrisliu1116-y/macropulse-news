@@ -1,0 +1,127 @@
+{
+  "generated": "2026-11-20 20:47",
+  "cards": {
+    "iran": {
+      "status": "谈判僵持·油轮安全事件频发",
+      "progress_line": "谈判僵持阶段，霍尔木兹海峡日通量跌至100万桶，伊朗转运受阻",
+      "lead": "谈判僵持：霍尔木兹日通量跌至100万桶，伊朗转运受阻",
+      "rest": "美国扩大封锁范围致伊朗油轮转运受限，特朗普称不急于对伊行动，参议院共和党阻挠战争决议",
+      "facts": [
+        "霍尔木兹海峡最新日度石油通过量仅约100万桶",
+        "伊朗在油轮间转运石油应对封锁",
+        "特朗普表示不急于对伊行动，参议院共和党阻挠战争决议"
+      ],
+      "noisy_dropped": [
+        "胡塞武装袭击沙特基金",
+        "联军拦截胡塞导弹",
+        "美联储古尔斯比加息言论",
+        "沙特民防局预警",
+        "WTI/布伦特原油结算价"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "谈判僵持：霍尔木兹日通量跌至100万桶，伊朗转运受阻。美国扩大封锁范围致伊朗油轮转运受限，特朗普称不急于对伊行动，参议院共和党阻挠战争决议",
+      "_summary_len": 69,
+      "_first_sent_len": 26
+    },
+    "fed": {
+      "status": "加息选项明确化·鹰派表态主导",
+      "progress_line": "加息50基点选项进入决策窗口：鹰派官员称所有选项开放",
+      "lead": "加息50基点选项在桌：鹰派官员称所有选项开放",
+      "rest": "鲍威尔派系官员持续释放鹰派信号，点阵图12月加息概率CME定价升至96.8%，票委对2024年终端利率分歧扩大至200个基点区间，市场押注2024年累计加息150基点",
+      "facts": [
+        "埃文斯称所有选项开放且50基点为合理选项",
+        "CME 12月加息定价96.8%"
+      ],
+      "noisy_dropped": [
+        "黄金五连跌，较历史高点暴跌超2000美元！加息预期与AI抛售潮夹击",
+        "中国财政部发行2年期债券，规模1200亿元，发行利率1.2021%",
+        "斯里兰卡将隔夜政策利率上调至9%"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "加息50基点选项在桌：鹰派官员称所有选项开放。鲍威尔派系官员持续释放鹰派信号，点阵图12月加息概率CME定价升至96.8%，票委对2024年终端利率分歧扩大至200个基点区间，市场押注2024年累计加息150基点",
+      "_summary_len": 106,
+      "_first_sent_len": 22
+    },
+    "ukraine": {
+      "status": "僵持：北约议题成核心分歧",
+      "progress_line": "僵持：北约议题成核心分歧，美提两套方案引俄欧反对",
+      "lead": "僵持：北约议题成核心分歧，美提两套方案引俄欧反对",
+      "rest": "美方提出乌克兰加入北约两套方案：若乌割让领土则允许加入；若维持现状则需俄接受北约东扩。库什纳称俄方同意欧洲参与多边谈判，但普京重申海上停火不可讨论。北约资格争议成当前最大卡点，下轮会谈排期未定。",
+      "facts": [
+        "库什纳称俄罗斯同意欧洲参与多边谈判（华尔街日报）",
+        "美方两套乌克兰入北约方案：割让领土/维持现状（华尔街日报）",
+        "普京：克里米亚大桥遭袭后俄方不会再讨论海上停火"
+      ],
+      "noisy_dropped": [
+        "乌克兰无人机残骸落在外交部院内（财联社x3）",
+        "美国延长卢克石油资产谈判至12月19日"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "僵持：北约议题成核心分歧，美提两套方案引俄欧反对。美方提出乌克兰加入北约两套方案：若乌割让领土则允许加入；若维持现状则需俄接受北约东扩。库什纳称俄方同意欧洲参与多边谈判，但普京重申海上停火不可讨论。北约资格争议成当前最大卡点，下轮会谈排期未定。",
+      "_summary_len": 122,
+      "_first_sent_len": 24
+    },
+    "apec": {
+      "status": "领导人双边会晤密集进行中·部分成果确认",
+      "progress_line": "领导人密集双边会晤，达成深圳展望与互联互通蓝图",
+      "lead": "领导人密集双边会晤·深圳展望与互联互通蓝图达成",
+      "rest": "王毅宣布深圳展望为APEC中国年核心成果，互联互通蓝图发布后墨西哥总统称将推动美墨贸易协议",
+      "facts": [
+        "王毅：会议达成深圳展望，这是APEC中国年最重要的成果",
+        "亚太经合组织互联互通蓝图发布"
+      ],
+      "noisy_dropped": [
+        "芝加哥联储主席古尔斯比称关税对通胀影响已消退",
+        "墨西哥总统辛鲍姆表示希望在美国迈阿密达成贸易协议"
+      ],
+      "archived": true,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "领导人密集双边会晤·深圳展望与互联互通蓝图达成。王毅宣布深圳展望为APEC中国年核心成果，互联互通蓝图发布后墨西哥总统称将推动美墨贸易协议",
+      "_summary_len": 69,
+      "_first_sent_len": 23
+    },
+    "huang": {
+      "status": "主线暂无权威进展",
+      "progress_line": "当前态势：核心冲突无新进展",
+      "lead": "今日无实质进展",
+      "rest": "",
+      "facts": [],
+      "noisy_dropped": [
+        "文件显示：特朗普9月买入超26万美元英伟达股票",
+        "马斯克想把算力送上天，SpaceX债权人拟在合同里加一条：抵押的英伟达GPU请留",
+        "Musk wants to send computing power into ",
+        "“白毛股神”爆料：黄仁勋若不回归 英伟达恐爆发核心人才流失潮 黄仁勋就是护城河"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "今日无实质进展。",
+      "_summary_len": 8,
+      "_first_sent_len": 7
+    }
+  },
+  "model_channels": [
+    {
+      "channel": "zhipu",
+      "key_env": "ZHIPU_KEY",
+      "configured": true
+    },
+    {
+      "channel": "gemini",
+      "key_env": "GEMINI_KEY",
+      "configured": true
+    },
+    {
+      "channel": "local-rule",
+      "key_env": null,
+      "configured": true
+    }
+  ]
+}

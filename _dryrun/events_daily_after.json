@@ -1,0 +1,127 @@
+{
+  "generated": "2026-11-20 20:35",
+  "cards": {
+    "iran": {
+      "status": "谈判僵持·封锁升级",
+      "progress_line": "封锁升级：美伊双方在油轮转运与封锁范围扩大上形成直接对冲",
+      "lead": "封锁升级：美扩大霍尔木兹封锁，伊朗油轮转运应对",
+      "rest": "美以就行动时机分歧未解，胡塞武装袭击沙特事件加剧区域紧张",
+      "facts": [
+        "美国扩大霍尔木兹海峡封锁范围",
+        "伊朗在油轮间转运石油规避封锁"
+      ],
+      "noisy_dropped": [
+        "霍尔木兹石油流量再度恶化",
+        "机构观测伊朗油轮转移",
+        "胡塞武装袭击沙特主权财富基金总部"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "封锁升级：美扩大霍尔木兹封锁，伊朗油轮转运应对。美以就行动时机分歧未解，胡塞武装袭击沙特事件加剧区域紧张",
+      "_summary_len": 52,
+      "_first_sent_len": 23
+    },
+    "fed": {
+      "status": "利率决议冲刺阶段",
+      "progress_line": "美联储官员放鹰：所有选项在桌面上",
+      "lead": "美联储官员放鹰：所有选项在桌面上",
+      "rest": "当前市场聚焦12月FOMC会议，CME利率决议定价已突破关键阈值，主席及票委表态持续强化紧缩预期",
+      "facts": [
+        "美联储官员放鹰：所有选项在桌面上"
+      ],
+      "noisy_dropped": [
+        "黄金五连跌，较历史高点暴跌超（数值略）美元！加息预期与AI抛售潮夹击",
+        "中国财政部发行2年期债券",
+        "CNH HIBOR主要期限利率多数续升",
+        "离岸人民币同业拆息利率多续升"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "美联储官员放鹰：所有选项在桌面上。当前市场聚焦12月FOMC会议，CME利率决议定价已突破关键阈值，主席及票委表态持续强化紧缩预期",
+      "_summary_len": 65,
+      "_first_sent_len": 16
+    },
+    "ukraine": {
+      "status": "核心分歧升级·欧洲拟参与多边会谈",
+      "progress_line": "核心分歧升级·普京拒谈海上停火，欧洲拟参与多边会谈",
+      "lead": "核心分歧升级：普京拒谈海上停火，欧洲拟参与多边会谈",
+      "rest": "库什纳称俄罗斯同意欧洲参与多边谈判，但海上停火成新障碍，下轮排期待定",
+      "facts": [
+        "普京拒谈海上停火（克里米亚大桥遭袭后）",
+        "库什纳称俄罗斯同意欧洲参与多边谈判"
+      ],
+      "noisy_dropped": [
+        "北约成员资格沦为谈判筹码",
+        "无人机残骸坠落外交部院",
+        "卢克石油资产谈判延至12月19日"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "核心分歧升级：普京拒谈海上停火，欧洲拟参与多边会谈。库什纳称俄罗斯同意欧洲参与多边谈判，但海上停火成新障碍，下轮排期待定",
+      "_summary_len": 60,
+      "_first_sent_len": 25
+    },
+    "apec": {
+      "status": "多边互动深化·成果文件初定",
+      "progress_line": "领导人非正式会议启动：深圳展望达成，互联互通蓝图发布，下届东道主交接方案公示",
+      "lead": "领导人非正式会议启动：深圳展望达成",
+      "rest": "中俄美元首会晤议程确认，APEC互联互通蓝图发布，王毅宣布将向2027年东道主移交会议成果文件",
+      "facts": [
+        "王毅：会议达成深圳展望，这是APEC中国年最重要的成果",
+        "APEC Connectivity Blueprint正式发布",
+        "习近平将同多国领导人举行双边会晤"
+      ],
+      "noisy_dropped": [
+        "芝加哥联储主席古尔斯比称关税对通胀影响消退",
+        "墨西哥总统辛鲍姆提及12月G20贸易协议"
+      ],
+      "archived": true,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "领导人非正式会议启动：深圳展望达成。中俄美元首会晤议程确认，APEC互联互通蓝图发布，王毅宣布将向2027年东道主移交会议成果文件",
+      "_summary_len": 65,
+      "_first_sent_len": 17
+    },
+    "huang": {
+      "status": "跟踪中",
+      "progress_line": "当前态势：今日无实质主线进展",
+      "lead": "今日无实质进展：主线等待权威确认",
+      "rest": "",
+      "facts": [
+        "今日无实质进展"
+      ],
+      "noisy_dropped": [
+        "文件显示：特朗普9月买入超（数值略）万美元英伟达股票",
+        "马斯克想把算力送上天，SpaceX债权人拟在合同里加一条：抵押的英伟达GPU请留",
+        "Musk wants to send computing power into ",
+        "“白毛股神”爆料：黄仁勋若不回归 英伟达恐爆发核心人才流失潮 黄仁勋就是护城河"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "今日无实质进展：主线等待权威确认。",
+      "_summary_len": 17,
+      "_first_sent_len": 16
+    }
+  },
+  "model_channels": [
+    {
+      "channel": "zhipu",
+      "key_env": "ZHIPU_KEY",
+      "configured": true
+    },
+    {
+      "channel": "gemini",
+      "key_env": "GEMINI_KEY",
+      "configured": true
+    },
+    {
+      "channel": "local-rule",
+      "key_env": null,
+      "configured": true
+    }
+  ]
+}

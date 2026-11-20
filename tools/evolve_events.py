@@ -56,6 +56,12 @@ SCOPES = {
         'core_subject': '黄仁勋相关调查进展、其后续动向与英伟达 CEO 接任安排',
         'stage_focus': ['相关调查的后续进展', '黄仁勋本人后续计划/回归动向', '英伟达 CEO 接任或管理层调整', '董事会与核心人才流失动态', '官方声明与权威媒体跟进'],
         'exclude_noise': ['英伟达股价日常波动', 'GPU产品发布/技术科普', '与黄仁勋本人无关的公司新闻', '未经证实的传闻与股吧爆料(除非权威媒体跟进)'],
+        # v503【输入层确定性去噪】用户实录:同公司常规新闻(微软合作/收购Inception)会把
+        # 15:41「筹资500亿创办新公司」的核心进展挤出摘要。提示词的否定约束不可靠,
+        # 这里在喂给LLM前直接剔除,模型看不到就不会写、也不会编成「被否决/搁置」。
+        'input_drop': ['微软', 'Azure', 'Windows PC', 'Inception', '扩散式AI', '收购',
+                       'Vera Rubin', 'GPU', '调仓', 'Palantir', 'SpaceX', '白毛股神', '股神爆料',
+                       '市值累计蒸发', '股价转跌', '财报', 'Vera', '一文穿透'],
         'baseline_status': '跟踪中',
     },
 }
@@ -64,6 +70,12 @@ SYS = """你是金融终端的事件情报编辑。严格按以下规则，把�
 
 【Scope Schema】core_subject=核心追踪主体；stage_focus=重点阶段要素；exclude_noise=明确排除的噪音。
 只保留真正推动该事件阶段进展的事实，剔除噪音与擦边新闻。若无实质进展，facts 写 ["今日无实质进展"]。
+
+【三条硬约束·主线强去噪（2026-11-20 用户拍板）】
+① 主线强去噪：先在思考阶段逐条过滤今日关联新闻，只保留【直接推进本卡 core_subject 核心冲突/主线】的实质进展。坚决剔除「仅含同一公司/实体名称、但不推进本事件主线」的常规新闻——典型如：日常业务合作（英伟达与微软合作部署AI）、无关并购（收购某AI开发商）、常规财报、A股产业链蹭热点、券商观点、外部机构持仓变动、股价涨跌播报。这些即使标题出现主角名字，也一律丢进 noisy_dropped，绝不写进 lead/rest/facts。被丢弃新闻中的公司名/项目名/机构名也不得出现在 lead/rest 里——即使写成「已过滤」「与主线无关」等元评论也不行，在 noisy_dropped 交代即可。
+② 宁缺毋滥 + 禁止编造 + 无进展也要给有效信息：若当日【没有】新的实质主线进展，严禁写「今日无实质进展」这种空话——用户要的是有效信息。此时应【基于昨日卡片】写出该事件【当前已知的最新态势】：现在处于什么阶段、已确认的安排/计划/传闻是什么、卡点在哪（例：黄仁勋卡即使今天没新闻，也要写清「董事会正评估CEO接任、最新传闻其拟创办新半导体公司筹资、回归谈判僵持」这类已知状态；APEC 卡即使已归档，也要写清「已达成哪些成果文件、中美俄会晤发布了什么」）。这些来自【昨日卡片的事实】，不是编造，可以写。status 沿用昨日阶段。只有【昨日卡片也为空/只有「今日无实质进展」】时才写「主线暂无权威进展」。
+   严禁【推断/补写/编造】输入标题与昨日卡片都不存在的人物、机构、动作、数字或官方声明——lead/rest/facts 的每一条都必须能在【今日输入 或 昨日卡片】中找到依据，不得把「特朗普」写成「特拉斯政府」、不得凭空生成「董事会紧急会议」「点阵图分歧」。宁可少写，不可编。特别注意【严禁编造任何数字】：金额、比例、百分比、流失率、年份一律不写——输入里的数字已脱敏，昨日卡片里即使有数字也不得照抄或推算，代码会从原始新闻注入真实核心数字。
+③ 最新进展优先：输入新闻按时间倒序（最新在前）。在主线相关新闻中，优先提取【时间最新、对事件走向影响最大】的核心动作作为 lead 的首句结果。若最新一条是本事件的关键进展（如当事人拟创办新公司筹资、官方宣布调查结论、CEO接任落地），它必须出现在 lead，不得被更早的常规消息挤掉。核心动作里的关键数字（金额、比例、日期、人数）必须原样保留在 lead 或 facts 中，不得省略（如「筹资500亿」不能写成「筹资用于创业」）。
 
 【输出格式】严格 JSON（不要 markdown、不要解释）：
 {
@@ -112,8 +124,8 @@ def build_user_prompt(card, facts_text, odds_text, yesterday):
             f"stage_focus：{'、'.join(sc['stage_focus'])}\n"
             f"exclude_noise：{'、'.join(sc['exclude_noise'])}\n\n"
             f"昨日卡片：{yesterday}\n\n"
-            f"今日关联新闻（标题列表，数字已脱敏）：\n{_mask_numbers(facts_text)}\n\n"
-            f"请输出该事件卡的新头部 JSON：用官员表态/谈判动作/倾向性等叙事写简介，不写任何数字。")
+            f"今日关联新闻（标题列表，数字已脱敏，严禁编写任何数字/百分比/金额）：\n{_mask_numbers(facts_text)}\n\n"
+            f"请输出该事件卡的新头部 JSON：用官员表态/谈判动作/倾向性等叙事写简介，严禁写任何数字、百分比、金额、年份。")
 
 def extract_json(text):
     """v472【弃用贪婪正则】按序：①剥离<think>标签 ②剥离markdown围栏 ③JSONDecoder.raw_decode括号配对提取。
@@ -143,6 +155,10 @@ def extract_json(text):
 
 def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
     sc = SCOPES[card]
+    # v503 输入层确定性去噪:命中的新闻不喂给LLM(防模型提及或编造后续)
+    _drop_pats = sc.get('input_drop') or []
+    _rule_dropped = [n for n in news if any(re.search(p, n, re.I) for p in _drop_pats)]
+    news = [n for n in news if not any(re.search(p, n, re.I) for p in _drop_pats)] if _drop_pats else news
     facts_text = '\n'.join('- ' + n for n in news[:30]) if news else '（今日无关联新闻）'
     prompt = build_user_prompt(card, facts_text, odds, yesterday)
     # v472【保留旧状态】fallback 必须沿用上一轮真实状态，严禁硬编码"进行中/archived=false"
@@ -179,6 +195,33 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
             fallback['model_channel'] = ch + '(parse-failed)'
             return fallback
         out['model_channel'] = ch
+        # v504 清理元评论:重型模型偶尔把「因不涉及核心议题被过滤」写进facts,
+        # 那是编辑过程说明而非事实,确定性剔除。
+        out['facts'] = [f for f in (out.get('facts') or [])
+                        if not re.search(r'被过滤|已剔除|与本次.*无关|不涉及.*核心', str(f))]
+        if _rule_dropped:
+            out['noisy_dropped'] = (out.get('noisy_dropped') or []) + [n[:40] for n in _rule_dropped[:3]]
+        # v503【反编造·代码级硬护栏】facts 明确写了「今日无实质进展」时,
+        # 严禁 lead/rest 再编造任何人物/机构/动作(实测重型模型会一边写无进展、一边编
+        # 「董事会紧急会议」「CFO接受评估」)。此处直接覆盖成无进展模板,并沿用昨日阶段。
+        _facts0 = out.get('facts') or []
+        _no_progress = any('今日无实质进展' in str(x) for x in _facts0)
+        if _no_progress:
+            # 用户拍板:无新进展也要给有效信息——沿用昨日摘要(最新已知态势),不写空话。
+            # LLM 若已从昨日卡片写出实质回顾(lead/rest 非空且非「无实质进展」),尊重它;
+            # 否则直接沿用昨日 summary,保证卡片永远有可读的最新状态。
+            _l = str(out.get('lead') or '')
+            # 空话特征:无实质进展/暂无权威/等待确认/主线待,或过短(<8字)
+            _llm_said_nothing = (not _l.strip()) or len(_l) < 8 or \
+                                any(k in _l for k in ['无实质进展', '暂无权威', '等待权威', '主线待', '暂无进展', '无新进展'])
+            if _llm_said_nothing:
+                _prev_sum = (_prev or {}).get('summary') or ''
+                if _prev_sum and '无实质进展' not in _prev_sum:
+                    out['lead'] = _prev_sum[:45]
+                    out['rest'] = _prev_sum[45:] if len(_prev_sum) > 45 else ''
+                    out['progress_line'] = '当前态势：' + _prev_sum[:40]
+                out['facts'] = (_prev or {}).get('facts') or []
+            out['status'] = (_prev or {}).get('status') or out.get('status') or sc['baseline_status']
         # v432：优先用 lead(首句) + rest 拼接，代码层强制首句≤45字铁律
         lead = re.sub(r'[①②③④⑤]', '', out.get('lead', '')).strip()
         rest = re.sub(r'[①②③④⑤]', '', out.get('rest', '')).strip()
@@ -199,11 +242,26 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
         else:
             summary = re.sub(r'[①②③④⑤]', '', out.get('summary', '')).strip()
         out['summary'] = summary
+        # v504【关键数字保真】实测重型模型会把「筹资500亿」改写成「筹资创业」丢掉数字。
+        # 最新一条主线新闻里的金额/比例若没进摘要,这里确定性注入 lead,保证核心进展可辨认。
+        _core = news[0] if news else ''
+        _num = re.search(r'\d+(?:\.\d+)?\s*(?:万亿|亿美元|亿元|亿|%|基点|bp)', str(_core))
+        if _num and not _no_progress:
+            tok = _num.group().replace(' ', '')
+            if tok not in str(out.get('summary', '')):
+                lead = out.get('lead') or lead
+                m = re.search(r'(筹资|融资|出资|投资|估值|规模|减持|增持)', lead)
+                lead = (lead[:m.end()] + tok + lead[m.end():]) if m else (lead.rstrip('。') + '（' + tok + '）')
+                if len(lead) > 45:
+                    lead = lead[:45].rstrip('，；、 ') + '…'
+                out['lead'] = lead
+                out['summary'] = (lead + (out.get('rest') or '')).strip()
+                summary = out['summary']
         # 弹性长度校验：40~160 字；首句铁律：第一句≤45字且含核心结果
         slen = len(summary)
         first_sent = re.split(r'[。！？]', summary)[0]
         first_len = len(first_sent)
-        need_fix = not (40 <= slen <= 160) or first_len > 45
+        need_fix = (not _no_progress) and (not (40 <= slen <= 160) or first_len > 45)
         if need_fix:
             problems = []
             if slen < 40: problems.append('全文只有%d字(太短,至少40)' % slen)
@@ -226,7 +284,7 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
                 pass
         # v461【代码层硬兜底】重型模型偶尔连续两次输出过短摘要(19字)，重写也算不达标。
         # 用 facts 事实清单补足到≥30字（事实是已核实内容，不是编造），再做首句≤45截断。
-        if len(out['summary']) < 30:
+        if (not _no_progress) and len(out['summary']) < 30:
             facts = out.get('facts') or []
             extra = ''
             for f in facts:
@@ -242,7 +300,7 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
                     slen = len(cand)
         out['_summary_len'] = slen
         out['_first_sent_len'] = first_len
-        if not (40 <= slen <= 160) or first_len > 45:
+        if (not _no_progress) and (not (40 <= slen <= 160) or first_len > 45):
             out['_warn'] = 'summary %d chars, first sentence %d chars (target 40-160, first<=45)' % (slen, first_len)
         # v487【归档单向锁·修APEC复活bug】LLM正常返回路径此前直接沿用LLM判的 archived，
         # 导致昨天已归档(峰会闭幕)的卡今天因新新闻被LLM重判false又弹回主列表。

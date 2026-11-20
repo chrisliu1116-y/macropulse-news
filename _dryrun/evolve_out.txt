@@ -1,0 +1,16 @@
+[llm-heavy] 探测到 50 模型, 可用重型 30 个
+[llm-heavy] 智谱 glm-z1-flash(deep) ok 6.1s
+[iran] channel=zhipu/glm-z1-flash(deep-primary) status=封锁僵持·美伊提案互呛 len=60 first=11
+[llm-heavy] 探测到 50 模型, 可用重型 30 个
+[llm-heavy] 智谱 glm-z1-flash(deep) ok 4.7s
+[fed] channel=zhipu/glm-z1-flash(deep-primary) status=加息路径明确·官员放鹰 len=101 first=21
+[llm-heavy] 探测到 50 模型, 可用重型 30 个
+[llm-heavy] 智谱 glm-z1-flash(deep) ok 6.7s
+[ukraine] channel=zhipu/glm-z1-flash(deep-primary) status=多边僵局：北约方案遭俄否决 len=59 first=13
+[llm-heavy] 探测到 50 模型, 可用重型 30 个
+[llm-heavy] 智谱 glm-z1-flash(deep) ok 6.5s
+[apec] channel=zhipu/glm-z1-flash(deep-primary) status=领导人抵离与会晤进行中·成果初显 len=69 first=31
+[llm-heavy] 探测到 50 模型, 可用重型 30 个
+[llm-heavy] 智谱 glm-z1-flash(deep) ok 5.6s
+[huang] channel=zhipu/glm-z1-flash(deep-primary) status=调查僵持：特拉斯称黄仁勋回归可能性大 len=100 first=18
+已写 _dryrun/events_daily_after.json

@@ -1,0 +1,133 @@
+{
+  "generated": "2026-11-20 20:49",
+  "cards": {
+    "iran": {
+      "status": "封锁升级·转运僵局",
+      "progress_line": "当前态势：封锁升级·转运僵局（霍尔木兹日流量跌至100万桶，美伊转运僵局持续）",
+      "lead": "封锁升级：霍尔木兹日流量跌至100万桶",
+      "rest": "美扩大封锁致伊朗转运，参议院力挺特朗普暂缓行动",
+      "facts": [
+        "霍尔木兹石油流量再度恶化，最新日度通过量一度仅约100万桶",
+        "美国扩大封锁范围之际，伊朗石油在油轮间进行转运",
+        "参议院共和党人力挺特朗普，挡下伊朗战争决议！特朗普：不急于决定下一步"
+      ],
+      "noisy_dropped": [
+        "胡塞武装袭击沙特基金总部",
+        "美国已为伊朗战事花费逾480亿美元",
+        "以媒：美以交换意见存在分歧"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "封锁升级：霍尔木兹日流量跌至100万桶。美扩大封锁致伊朗转运，参议院力挺特朗普暂缓行动",
+      "_summary_len": 43,
+      "_first_sent_len": 19
+    },
+    "fed": {
+      "status": "12月加息路径僵持",
+      "progress_line": "加息50基点选项在桌·鹰派官员称所有选项均开放",
+      "lead": "加息50基点选项在桌：鹰派官员称所有选项均开放",
+      "rest": "最新CME定价升至98.2%但未突破关键97.5%阻力位，沃什重申‘政策灵活性’但未明确路径，市场押注12月25日会议为关键窗口",
+      "facts": [
+        "鹰派官员称所有选项包括加息50基点",
+        "CME定价升至98.2%但未突破97.5%阻力位",
+        "沃什重申政策灵活性但未明确路径"
+      ],
+      "noisy_dropped": [
+        "黄金五连跌暴跌超2000美元",
+        "中国财政部发行2年期债券1200亿",
+        "斯里兰卡加息至9%"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "加息50基点选项在桌：鹰派官员称所有选项均开放。最新CME定价升至98.2%但未突破关键97.5%阻力位，沃什重申‘政策灵活性’但未明确路径，市场押注12月25日会议为关键窗口",
+      "_summary_len": 88,
+      "_first_sent_len": 23
+    },
+    "ukraine": {
+      "status": "谈判僵持·北约方案引分歧",
+      "progress_line": "俄美乌三方会谈僵持于北约资格争议，美国提交两套乌克兰入约方案（割让领土换资格/维持现状换资格）",
+      "lead": "北约资格谈判僵持：美方提交两套乌克兰入约方案",
+      "rest": "俄方反对任何领土变更条件，乌方要求同步解除制裁；普京重申海上停火无可能，库什纳称俄同意欧洲参与多边谈判",
+      "facts": [
+        "库什纳称俄罗斯同意欧洲参与多边谈判（据华尔街日报）",
+        "普京：克里米亚大桥遭袭后 俄方不会再讨论海上停火",
+        "美方提交乌克兰入约两方案（1.割让领土换资格 2.维持现状换资格）"
+      ],
+      "noisy_dropped": [
+        "北约成员资格沦为谈判筹码！美方据悉提出两套乌克兰方案",
+        "美国在近期的会谈中提出了让乌克兰加入北约的可能性",
+        "特朗普告诉欧洲 普京希望结束战争（AXIOS）",
+        "美国将就出售俄罗斯卢克石油国际资产谈判期限延长至12月19日"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "北约资格谈判僵持：美方提交两套乌克兰入约方案。俄方反对任何领土变更条件，乌方要求同步解除制裁；普京重申海上停火无可能，库什纳称俄同意欧洲参与多边谈判",
+      "_summary_len": 74,
+      "_first_sent_len": 22
+    },
+    "apec": {
+      "status": "领导人抵华与会晤进行中",
+      "progress_line": "领导人抵华与会晤进行中，部分成果文件发布",
+      "lead": "领导人抵华与会晤进行中：深圳展望成中国年核心成果",
+      "rest": "习近平密集会见泰国、新加坡、澳大利亚、印尼领导人，APEC Connectivity Blueprint发布，王毅强调深圳展望为重要成果，下届东道主交接待确认",
+      "facts": [
+        "王毅：会议达成深圳展望（APEC中国年最重要成果）",
+        "APEC Connectivity Blueprint发布",
+        "习近平会见泰国总理阿努廷、新加坡总理黄循财、澳大利亚总理阿尔巴尼斯、印尼总统普拉博沃"
+      ],
+      "noisy_dropped": [
+        "芝加哥联储主席古尔斯比称关税影响消退",
+        "墨西哥总统希望美墨在G20达成贸易协议"
+      ],
+      "archived": true,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "领导人抵华与会晤进行中：深圳展望成中国年核心成果。习近平密集会见泰国、新加坡、澳大利亚、印尼领导人，APEC Connectivity Blueprint发布，王毅强调深圳展望为重要成果，下届东道主交接待确认",
+      "_summary_len": 104,
+      "_first_sent_len": 24
+    },
+    "huang": {
+      "status": "谈判僵持",
+      "progress_line": "谈判僵持：董事会评估CEO接任、黄仁勋拟筹资创办新公司",
+      "lead": "谈判僵持：董事会评估CEO接任、黄仁勋拟筹资创办新公司",
+      "rest": "董事会正评估CEO接任方案，黄仁勋已启动新公司筹资计划（目标融资500亿美元），核心人才流失率达23%。",
+      "facts": [
+        "董事会评估CEO接任方案（来源： yesterday card）",
+        "黄仁勋拟筹资创办新公司（目标融资500亿美元）（来源： yesterday card）",
+        "核心人才流失率达23%（来源： yesterday card）"
+      ],
+      "noisy_dropped": [
+        "文件显示：特朗普9月买入超26万美元英伟达股票",
+        "马斯克想把算力送上天，SpaceX债权人拟在合同里加一条：抵押的英伟达GPU请留",
+        "Musk wants to send computing power into ",
+        "“白毛股神”爆料：黄仁勋若不回归 英伟达恐爆发核心人才流失潮 黄仁勋就是护城河"
+      ],
+      "archived": false,
+      "model_channel": "zhipu/glm-z1-flash(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "谈判僵持：董事会评估CEO接任、黄仁勋拟筹资创办新公司。董事会正评估CEO接任方案，黄仁勋已启动新公司筹资计划（目标融资500亿美元），核心人才流失率达23%。",
+      "_summary_len": 80,
+      "_first_sent_len": 27
+    }
+  },
+  "model_channels": [
+    {
+      "channel": "zhipu",
+      "key_env": "ZHIPU_KEY",
+      "configured": true
+    },
+    {
+      "channel": "gemini",
+      "key_env": "GEMINI_KEY",
+      "configured": true
+    },
+    {
+      "channel": "local-rule",
+      "key_env": null,
+      "configured": true
+    }
+  ]
+}
