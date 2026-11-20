@@ -268,6 +268,14 @@ def main():
     if os.path.exists(a.prev):
         try: prev = json.load(open(a.prev, encoding='utf-8'))
         except Exception: prev = {}
+    # v502【独立持久锁·防"某轮漏锁→永久失锁"】
+    # 原单向锁只读上一轮prev:一旦某轮(如并发run)漏锁写成false,后续prev全false,锁永久失效。
+    # 这里读独立锁文件作为权威源,不受prev波动影响。内容与 events_daily.json 同目录。
+    locks = {}
+    lock_path = os.path.join(os.path.dirname(a.out) or '.', 'event_locks.json')
+    if os.path.exists(lock_path):
+        try: locks = json.load(open(lock_path, encoding='utf-8')) or {}
+        except Exception: locks = {}
 
     odds_default = {
         'iran': 'Polymarket：解除封锁37% / 通行正常8.5%',
@@ -285,11 +293,29 @@ def main():
             yesterday = SCOPES[cid]['core_subject']
         out = evolve(cid, news_map.get(cid, []), odds_default[cid], yesterday, not a.no_llm,
                      prev_card=prev.get(cid) if isinstance(prev.get(cid), dict) else None)
+        # 持久锁最后一道闸:覆盖所有路径(LLM成功/fallback),不受prev波动影响
+        lk = locks.get(cid) or {}
+        if lk.get('archived'):
+            out['archived'] = True
+        if lk.get('dormant'):
+            out['dormant'] = True
         result['cards'][cid] = out
         print('[%s] channel=%s status=%s len=%s first=%s' % (
             cid, out.get('model_channel'), out.get('status'),
             out.get('_summary_len'), out.get('_first_sent_len')))
 
+    # v502 锁自愈: 本轮判定archived/dormant=true的卡写回锁文件,持续记住终态
+    try:
+        for _cid, _c in result.get('cards', {}).items():
+            if _c.get('archived') or _c.get('dormant'):
+                _e = locks.setdefault(_cid, {})
+                if _c.get('archived'): _e['archived'] = True; _e.setdefault('locked_at', bj_now_str())
+                if _c.get('dormant'): _e['dormant'] = True
+        os.makedirs(os.path.dirname(lock_path) or '.', exist_ok=True)
+        with open(lock_path, 'w', encoding='utf-8') as f:
+            json.dump(locks, f, ensure_ascii=False, indent=1)
+    except Exception as e:
+        print('[lock] 锁文件写入失败: %s' % e)
     with open(a.out, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     print('已写', a.out)
