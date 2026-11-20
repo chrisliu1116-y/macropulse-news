@@ -19,7 +19,7 @@ def bj_now_str():
     return datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M')
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from llm_pool import chat, chat_heavy, AllModelsFailed, status as model_status
+from llm_pool import chat, chat_heavy, _chat_heavy_once, AllModelsFailed, status as model_status
 
 # 4 张卡的 Scope Schema（v2 演练定稿）
 SCOPES = {
@@ -162,10 +162,10 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
         # 不再调 chat()(含 glm-4-flash/flash-lite),换一条重型重试1次。
         if not out:
             try:
-                text2, ch2 = chat_heavy(msgs, max_tokens=4000, timeout=100)
+                text2, ch2 = _chat_heavy_once(msgs, max_tokens=4000, timeout=100)
                 out = extract_json(text2)
                 if out:
-                    ch = ch2 + '(heavy-retry-ok)'
+                    ch = ch2 + '(heavy-reparse-ok)'
             except Exception:
                 pass
         if not out:

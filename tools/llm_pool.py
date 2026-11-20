@@ -204,8 +204,8 @@ def _gemini_heavy(model, thinking_cfg):
         return text, 'gemini/' + model + '(deep)'
     return call
 
-def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True):
-    """事件卡片专用：深度思考 + 重型主力有序降级 + 智谱兜底。
+def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True):
+    """【内部单轮】深度思考 + 重型主力有序降级 + 智谱兜底。
     返回 (text, channel)；全挂抛 AllModelsFailed（调用方回退本地规则）。
     · 探测可用模型名单（GET /v1beta/models），不可用别名不写死在首位。
     · Gemini 3.x → thinkingLevel:high；2.5 → thinkingBudget:8192。
@@ -260,6 +260,37 @@ def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True):
             except Exception as e:
                 errs.append('zhipu/%s:%s' % (zm, type(e).__name__))
     raise AllModelsFailed('; '.join(errs) if errs else 'no heavy channels available')
+
+# v502【用户拍板:双通道全失败不跳过等下一班,阶梯退避重试】
+# 接口断联通常短暂:宁可多等,也要把这班更新跑出来。
+# 阶梯 2m→5m→10m→15m→20m,累计重试窗口上限60分钟(不含单轮调用自身耗时)。
+# 期间任一重型思考模型恢复即刻返回;全程只调 _chat_heavy_once,绝不降级轻量模型。
+HEAVY_RETRY_BACKOFFS = (120, 300, 600, 900, 1200)   # 秒
+HEAVY_RETRY_TOTAL = 3600                             # 累计等待上限60分钟
+
+def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True):
+    """事件卡片专用重型思考调用(带阶梯退避重试)。
+    双通道全失败时按 2/5/10/15/20 分钟退避重试,累计等待≤60分钟;
+    一旦智谱 glm-z1-flash 或 Gemini 思考模型恢复立即返回。绝不降级 glm-4-flash/flash-lite。
+    """
+    waited = 0
+    last_err = ''
+    for i, backoff in enumerate((0,) + HEAVY_RETRY_BACKOFFS):
+        if backoff:
+            if waited + backoff > HEAVY_RETRY_TOTAL:
+                if verbose: print('[llm-heavy-retry] 累计等待已达 %.0f 分钟上限,停止重试' % (waited / 60))
+                break
+            if verbose: print('[llm-heavy-retry] 第%d次退避 %d 分钟 (累计等待 %.0f/60 分钟)' %
+                              (i, backoff // 60, (waited + backoff) / 60))
+            time.sleep(backoff)
+            waited += backoff
+        try:
+            return _chat_heavy_once(messages, max_tokens=max_tokens, timeout=timeout, verbose=verbose)
+        except AllModelsFailed as e:
+            last_err = str(e)
+            if verbose: print('[llm-heavy-retry] 本轮双通道全失败: %s' % last_err[:120])
+    raise AllModelsFailed(last_err or 'all heavy channels failed after %d rounds (waited %.0f min)' %
+                          (len(HEAVY_RETRY_BACKOFFS) + 1, waited / 60))
 
 if __name__ == '__main__':
     print('channels:', status())
