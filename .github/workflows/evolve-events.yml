@@ -24,7 +24,10 @@ concurrency:
 jobs:
   evolve:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # v464【防卡死兜底】90→25分钟：LLM全挂/网络卡住时由GHA强杀，
+    # 释放 concurrency 锁(concurrency.cancel-in-progress=false)，避免堵死后续三班定时任务。
+    # 代码侧 chat_heavy 也已加 retry_total=180s + 单次timeout=60s 双重收敛。
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

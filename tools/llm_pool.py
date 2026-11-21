@@ -311,20 +311,24 @@ def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True, tempe
 HEAVY_RETRY_BACKOFFS = (120, 300, 600, 900, 1200)   # 秒
 HEAVY_RETRY_TOTAL = 3600                             # 累计等待上限60分钟
 
-def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True, temperature=None, allow_zhipu=True):
+def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True, temperature=None,
+               allow_zhipu=True, retry_total=None):
     """事件卡片专用重型思考调用(带阶梯退避重试)。
     双通道全失败时按 2/5/10/15/20 分钟退避重试,累计等待≤60分钟;
     一旦智谱 glm-z1-flash 或 Gemini 思考模型恢复立即返回。绝不降级 glm-4-flash/flash-lite。
+    v464：retry_total 可覆盖累计等待上限（秒）——event_incubator 等长跑链路传短值，
+    避免 LLM 全挂时睡满60分钟霸占 workflow 并发锁。None=用全局默认3600（兼容其它调用方）。
     """
+    cap = HEAVY_RETRY_TOTAL if retry_total is None else max(0, int(retry_total))
     waited = 0
     last_err = ''
     for i, backoff in enumerate((0,) + HEAVY_RETRY_BACKOFFS):
         if backoff:
-            if waited + backoff > HEAVY_RETRY_TOTAL:
+            if waited + backoff > cap:
                 if verbose: print('[llm-heavy-retry] 累计等待已达 %.0f 分钟上限,停止重试' % (waited / 60))
                 break
-            if verbose: print('[llm-heavy-retry] 第%d次退避 %d 分钟 (累计等待 %.0f/60 分钟)' %
-                              (i, backoff // 60, (waited + backoff) / 60))
+            if verbose: print('[llm-heavy-retry] 第%d次退避 %d 分钟 (累计等待 %.0f/%.0f 分钟)' %
+                              (i, backoff // 60, (waited + backoff) / 60, cap / 60))
             time.sleep(backoff)
             waited += backoff
         try:

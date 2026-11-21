@@ -155,13 +155,15 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
         return fallback
     try:
         msgs = [{'role': 'system', 'content': SYS}, {'role': 'user', 'content': prompt}]
-        text, ch = chat_heavy(msgs, max_tokens=4000, timeout=100, temperature=0.15, allow_zhipu=False)
+        # v464：单次60s + 累计退避≤180s，避免LLM全挂时睡满60分钟霸占workflow并发锁
+        text, ch = chat_heavy(msgs, max_tokens=4000, timeout=60, temperature=0.15,
+                              allow_zhipu=False, retry_total=180)
         out = extract_json(text)
         # v501【用户拍板:严禁降级轻量模型】解析失败也用重型通道重试,
         # 不再调 chat()(含 glm-4-flash/flash-lite),换一条重型重试1次。
         if not out:
             try:
-                text2, ch2 = _chat_heavy_once(msgs, max_tokens=4000, timeout=100, temperature=0.15, allow_zhipu=False)
+                text2, ch2 = _chat_heavy_once(msgs, max_tokens=4000, timeout=60, temperature=0.15, allow_zhipu=False)
                 out = extract_json(text2)
                 if out:
                     ch = ch2 + '(heavy-reparse-ok)'
@@ -211,7 +213,7 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
                           + '。请按倒金字塔重写：第一句≤45字直接给核心结果，全文40~160字按信息密度自适应，只输出完整JSON。')
             try:
                 text2, ch2 = chat_heavy([{'role': 'system', 'content': SYS},
-                                   {'role': 'user', 'content': fix_prompt}], max_tokens=4000, timeout=100, temperature=0.15, allow_zhipu=False)
+                                   {'role': 'user', 'content': fix_prompt}], max_tokens=4000, timeout=60, temperature=0.15, allow_zhipu=False)
                 out2 = extract_json(text2)
                 if out2 and out2.get('summary'):
                     s2 = re.sub(r'[①②③④⑤]', '', out2['summary']).strip()
