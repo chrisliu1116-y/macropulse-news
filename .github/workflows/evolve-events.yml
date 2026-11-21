@@ -126,10 +126,12 @@ jobs:
           PY
           git config user.name "evolve-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -z "$(git status --porcelain -- data/events_daily.json)" ]; then
+          # v462：72h滚动池必须一起提交，否则每次checkout都是干净的、loadOld()读不到历史，
+          # 滚动沉淀跨不了班次。两个文件任一变化都提交。
+          if [ -z "$(git status --porcelain -- data/events_daily.json data/news_supplement.json)" ]; then
             echo "数据无变化，跳过提交"
           else
-            git add data/events_daily.json
+            git add data/events_daily.json data/news_supplement.json
             # v501修复: 先rebase再commit(原顺序commit后pull因unstaged改动冲突);
             # 只暂存目标文件避免把build_news_map导出的json一起带进来。
             git -c user.name="evolve-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
@@ -146,7 +148,7 @@ jobs:
               git -c user.name="evolve-bot" pull --rebase origin main || true
               git push origin HEAD:main
             }
-            echo "已提交 events_daily.json"
+            echo "已提交 events_daily.json + news_supplement.json(72h滚动池)"
           fi
 
       - name: 刷新 CDN
