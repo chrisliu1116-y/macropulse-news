@@ -1,0 +1,24 @@
+name: 快讯源连通性探针（GHA实跑各源条数）
+# 轻量诊断：只跑10源补抓+Step Summary，不碰LLM/不提交卡池，几秒完成。
+# 用途：确认 GHA 海外IP 下各源真实条数，防「step绿灯但核心源0条」假绿。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: news-source-probe
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 10源补抓统计
+        run: node tools/news_supplement.js
