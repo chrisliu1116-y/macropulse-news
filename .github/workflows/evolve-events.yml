@@ -33,13 +33,21 @@ jobs:
       - name: 安装依赖
         run: pip install -r requirements.txt
 
-      - name: 拉取今日关联新闻（从 CF 边缘池自动生成）
+      - name: 方案A·快讯补抓(隔夜/周末断档兜底)
+        # 前端 App 切后台冻结→隔夜到07:35无新闻投喂；这里从3个核心源直抓最近24h，
+        # 与 CF __news 池合并去重(GHA海外IP直连，不写KV/不调LLM)。失败保留旧产物。
+        run: |
+          node tools/news_supplement.js
+          python3 tools/merge_news.py
+          echo "合并池: $(python3 -c 'import json;d=json.load(open("data/news_merged.json"));print(d["cf"],"+",d["supplement"],"->",d["merged"])')"
+
+      - name: 拉取今日关联新闻（合并池：CF + 补抓）
         env:
           GH_TOKEN: ${{ github.token }}
+          MP_NEWS_POOL: data/news_merged.json
         run: |
-          # v460：从 CF KV 的1000条实时分级池自动生成今日事件新闻映射。
-          # 之前这份文件是静态的、没人更新 → 卡片内容十几个小时不变。
-          # CF不可达时脚本自动保留旧映射，不会写空污染卡片。
+          # v461：用合并池(CF边缘池 + 方案A补抓)生成事件新闻映射，补上隔夜断档。
+          # 合并池不可达时脚本自动回退 CF URL，不会写空污染卡片。
           python3 tools/build_news_map.py data/events_news_today.json data/events_daily.json
           echo "今日新闻映射: $(python3 -c 'import json;d=json.load(open("data/events_news_today.json"));print(sum(len(v) for v in d.values()))') 条"
 
@@ -80,6 +88,7 @@ jobs:
         # 红线：本步骤只用智谱(zhihu)筛候选，绝不调 Gemini。
         env:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
+          MP_NEWS_POOL: data/news_merged.json
         run: |
           python3 tools/polymarket_radar.py --out data/_radar_shadow.json
 

@@ -43,6 +43,16 @@ def load_keywords(events_path):
     return kws or FALLBACK_KEYWORDS
 
 def fetch_pool():
+    # v461【方案A补投喂】MP_NEWS_POOL 环境变量指向合并池(CF+补抓)，未设则用 CF URL
+    local = os.environ.get('MP_NEWS_POOL', '').strip()
+    if local:
+        try:
+            with open(local, encoding='utf-8') as f:
+                d = json.load(f)
+            print('[build_news_map] 用合并池 %s (%d条)' % (local, len(d.get('items', []) or [])))
+            return d.get('items', []) or []
+        except Exception as e:
+            print('[build_news_map] 合并池读取失败，回退CF: %s' % e)
     try:
         req = urllib.request.Request(EDGE_NEWS, headers={'User-Agent': 'mp-evolve'})
         with urllib.request.urlopen(req, timeout=25) as r:
