@@ -44,6 +44,33 @@ jobs:
           python3 tools/merge_news.py
           echo "合并池: $(python3 -c 'import json;d=json.load(open("data/news_merged.json"));print(d["cf"],"+",d["supplement"],"->",d["merged"])')"
 
+      - name: 立即持久化补抓池(72h滚动沉淀)
+        # v465【解耦】滚动池必须独立于LLM/卡片护栏提交：即使后面LLM报错/超时/护栏assert失败，
+        # 刚抓到的新闻池也已安全落库，下次checkout才有历史可滚动累积。
+        if: always() && inputs.mode != 'dry'
+        run: |
+          set -euo pipefail
+          git config user.name "evolve-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -z "$(git status --porcelain -- data/news_supplement.json)" ]; then
+            echo "补抓池无变化，跳过立即提交"
+            exit 0
+          fi
+          git add data/news_supplement.json
+          git -c user.name="evolve-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            rebase -X ours origin main || true
+          git -c user.name="evolve-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "data: 快讯滚动池补抓 $(TZ=Asia/Shanghai date +%Y-%m-%d\ %H:%M)" || {
+              echo "无改动或commit失败，跳过"
+              exit 0
+            }
+          git push origin HEAD:main || {
+            echo "::warning::补抓池push失败,重试一次"
+            git pull --rebase -X ours origin main || true
+            git push origin HEAD:main
+          }
+          echo "已立即持久化 data/news_supplement.json"
+
       - name: 拉取今日关联新闻（合并池：CF + 补抓）
         env:
           GH_TOKEN: ${{ github.token }}
@@ -129,12 +156,12 @@ jobs:
           PY
           git config user.name "evolve-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # v462：72h滚动池必须一起提交，否则每次checkout都是干净的、loadOld()读不到历史，
-          # 滚动沉淀跨不了班次。两个文件任一变化都提交。
-          if [ -z "$(git status --porcelain -- data/events_daily.json data/news_supplement.json)" ]; then
-            echo "数据无变化，跳过提交"
+          # v465：滚动池已由上面「立即持久化补抓池」步骤(if:always)独立提交，
+          # 这里只管事件卡，避免护栏assert失败时拖累滚动池落库。
+          if [ -z "$(git status --porcelain -- data/events_daily.json)" ]; then
+            echo "事件卡无变化，跳过提交"
           else
-            git add data/events_daily.json data/news_supplement.json
+            git add data/events_daily.json
             # v501修复: 先rebase再commit(原顺序commit后pull因unstaged改动冲突);
             # 只暂存目标文件避免把build_news_map导出的json一起带进来。
             git -c user.name="evolve-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
@@ -151,7 +178,7 @@ jobs:
               git -c user.name="evolve-bot" pull --rebase origin main || true
               git push origin HEAD:main
             }
-            echo "已提交 events_daily.json + news_supplement.json(72h滚动池)"
+            echo "已提交 events_daily.json"
           fi
 
       - name: 刷新 CDN
