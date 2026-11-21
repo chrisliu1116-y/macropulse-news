@@ -46,6 +46,38 @@ async function main() {
   const detail = res.detail || [];
   const okSources = detail.filter(d => !d.includes('FAIL')).length;
   console.log('[news_supplement] 10源结果:', detail.join(' | '));
+
+  /* v463【可观测性】把各源状态写成结构化统计，输出到 GITHUB_STEP_SUMMARY，
+   * 防止「step 绿灯但核心源被 GHA IP 反爬返回0条」的假绿；核心源0条额外发
+   * ::warning:: 注解（不中断 workflow）。本地运行时环境变量不存在则只打控制台。 */
+  const CORE = ['金十数据', '华尔街见闻', '财联社', '财联社深度'];
+  const stats = detail.map(d => {
+    const m = String(d).match(/^(.*?):(.+)$/);
+    const name = m ? m[1] : String(d);
+    const rest = m ? m[2] : '';
+    const failed = rest.startsWith('FAIL');
+    const n = failed ? 0 : (parseInt(rest, 10) || 0);
+    return { name, failed, n, core: CORE.includes(name), err: failed ? rest.slice(5, 45).replace(/[)）]+$/, '') : '' };
+  });
+  stats.forEach(s => {
+    if (s.core && s.n === 0) {
+      console.log(`::warning::核心源 ${s.name} 抓取条数为 0${s.err ? '（' + s.err + '）' : ''}`);
+    }
+  });
+  const summary = [
+    '## Polymarket/快讯补抓 · 10源抓取统计', '',
+    '| 源 | 状态 | 条数 | 核心 |', '|---|---|---:|---|',
+    ...stats.map(s => `| ${s.name} | ${s.failed ? '❌ 失败' : (s.n === 0 ? '⚠️ 0条' : '✅ 成功')} | ${s.n} | ${s.core ? (s.n === 0 ? '⚠️ **核心0条**' : '是') : ''} |`),
+    '', `成功源 ${okSources}/${stats.length}；核心源0条 ${stats.filter(s => s.core && s.n === 0).length}/${CORE.length}。`,
+  ].join('\n');
+  const sumFile = process.env.GITHUB_STEP_SUMMARY;
+  if (sumFile) {
+    try { fs.appendFileSync(sumFile, summary + '\n'); }
+    catch (e) { console.log('[news_supplement] 写 STEP_SUMMARY 失败:', e.message); }
+  } else {
+    console.log('[news_supplement] STEP_SUMMARY(本地预览):\n' + summary);
+  }
+
   if (!okSources) {
     console.log('[news_supplement] 全部源失败，保留旧池文件（不覆盖）');
     return;
