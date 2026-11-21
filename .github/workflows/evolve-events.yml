@@ -74,6 +74,15 @@ jobs:
             --out data/events_daily.json \
             --min-high 3
 
+      - name: Polyradar候选筛选（Gamma直连→白名单→CF交叉验证→智谱复核）
+        # radar 并入本 workflow：cron-job.org 三班(07:35/15:30/20:50)自动触发本workflow，
+        # radar 随之每天自动跑。不再依赖 insum-cloud 那个死了的 GHA schedule。
+        # 红线：本步骤只用智谱(zhihu)筛候选，绝不调 Gemini。
+        env:
+          ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
+        run: |
+          python3 tools/polymarket_radar.py --out data/_radar_shadow.json
+
       - name: Polyradar审批队列（骨架入队+确认后Gemini补全）
         # Phase3：radar 净新增候选写 auto_ 骨架卡(不调Gemini)进前端待审队列；
         # 只在 CF /__card-confirm 回执里已确认的候选才调 Gemini 补全三段式。
@@ -82,7 +91,7 @@ jobs:
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
         run: |
           python3 tools/radar_publish.py \
-            --radar https://raw.githubusercontent.com/chrisliu1116-y/insum-cloud/main/tools/polymarket_radar_shadow.json \
+            --radar data/_radar_shadow.json \
             --events data/events_daily.json
 
       - name: 提交结果（带护栏）
