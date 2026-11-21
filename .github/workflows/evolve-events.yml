@@ -74,6 +74,17 @@ jobs:
             --out data/events_daily.json \
             --min-high 3
 
+      - name: Polyradar审批队列（骨架入队+确认后Gemini补全）
+        # Phase3：radar 净新增候选写 auto_ 骨架卡(不调Gemini)进前端待审队列；
+        # 只在 CF /__card-confirm 回执里已确认的候选才调 Gemini 补全三段式。
+        env:
+          ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+        run: |
+          python3 tools/radar_publish.py \
+            --radar https://raw.githubusercontent.com/chrisliu1116-y/insum-cloud/main/tools/polymarket_radar_shadow.json \
+            --events data/events_daily.json
+
       - name: 提交结果（带护栏）
         if: inputs.mode != 'dry'
         run: |
