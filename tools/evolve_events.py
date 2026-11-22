@@ -321,12 +321,12 @@ def main():
                 result['cards'][cid] = out
                 print('[%s] SKIP archived/dormant (保留昨日内容)' % cid)
                 continue
-        # v506【防Gemini免费版429】卡间间隔：25→45秒(v508,用户拍板)。
-        # 实测早班5卡连发、25秒间隔仍有3张撞429(只有1个key)。45秒把每分钟请求
-        # 压到~1.3张，给免费版RPM留余量；5卡总间隔增~1.7分钟，对timeout=60分无影响。
+        # v506【防Gemini免费版429】卡间间隔：25→45→60秒(v509,用户拍板)。
+        # 实测早班5卡连发、25秒间隔仍有3张撞429。60秒把每分钟请求压到1张，
+        # 最大化给免费版RPM留余量；5卡总间隔4分钟，对timeout=60分无影响。
         # 注意：限流按GCP项目计(非按key)，根治需多项目多key或付费层，见RULES_运维发版.md。
         if _ci > 0:
-            time.sleep(45)
+            time.sleep(60)
         yesterday = ''
         if cid in prev and isinstance(prev[cid], dict):
             yesterday = prev[cid].get('summary', '')
