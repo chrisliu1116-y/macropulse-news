@@ -108,8 +108,10 @@ def _groq(model, heavy=False):
         body = {'model': model, 'messages': messages, 'max_tokens': max_tokens}
         if heavy:
             body['reasoning_effort'] = 'low'
+        # v539b：Groq 拒绝 Python-urllib 默认 UA（实测 403），必须显式带 UA（带后 200）
         req = urllib.request.Request(GROQ_URL, data=json.dumps(body).encode(),
-            headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
+            headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json',
+                     'User-Agent': 'mp-llm/1.0'})
         with urllib.request.urlopen(req, timeout=timeout) as r:
             d = json.load(r)
         msg = (d.get('choices') or [{}])[0].get('message') or {}
@@ -123,7 +125,7 @@ def _groq(model, heavy=False):
 # 每项 (通道名, 调用函数, 所需key环境变量)。
 CHANNELS = [
     # v539 普通档主：Groq llama-3.3-70b（场景3新卡判定 / 场景4异动归因主通道）
-    ('groq/llama-3.3-70b-versatile',    _groq('llama-3.3-70b-versatile'),     'GROQ_KEY'),
+    ('groq/qwen3.8-27b',           _groq('qwen/qwen3.8-27b'),           'GROQ_KEY'),  # 11-22实测llama-3.3已下架,gpt-oss-20b空内容,选qwen3.8
     # Gemini 普通兜底（内部会把全部 key 轮流试完才抛；含两个 lite 模型）
     ('gemini/gemini-flash-lite-latest', _gemini('gemini-flash-lite-latest'), 'GEMINI_KEY'),
     ('gemini/gemini-3.1-flash-lite',    _gemini('gemini-3.1-flash-lite'),    'GEMINI_KEY'),
