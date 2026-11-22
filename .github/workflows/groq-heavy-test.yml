@@ -1,0 +1,33 @@
+name: Groq重型兜底验收测试（临时·2026-11-22）
+
+on:
+  workflow_dispatch:
+
+# 只读测试，不提交任何文件；结果从 run 日志抓取
+permissions:
+  contents: read
+
+concurrency:
+  group: groq-heavy-test
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Groq 重型 5卡×3轮 + secrets 数量核查
+        env:
+          GROQ_KEY: ${{ secrets.GROQ_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+          ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
+        run: |
+          python3 tools/groq_heavy_test.py
