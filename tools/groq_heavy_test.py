@@ -67,9 +67,11 @@ def groq_models(key):
         return [m['id'] for m in json.load(r).get('data', [])]
 
 
-def groq_chat(key, model, msgs, temperature=0.15, max_tokens=4000, timeout=120):
+def groq_chat(key, model, msgs, temperature=0.15, max_tokens=16000, timeout=120):
     body = {'model': model, 'messages': msgs,
             'max_tokens': max_tokens, 'temperature': temperature}
+    if 'gpt-oss' in model:
+        body['reasoning_effort'] = 'low'   # v2: 防推理token挤占正文输出
     req = urllib.request.Request(GROQ_URL, data=json.dumps(body).encode(),
         headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json', 'User-Agent': 'mp-test'})
     t0 = time.time()
@@ -148,7 +150,7 @@ def main():
             total += 1
             rec = {'round': rnd, 'card': cid, 'model': model}
             try:
-                text, ms, usage, rlen = groq_chat(key, model, msgs)
+                text, ms, usage, rlen = groq_chat(key, model, msgs, max_tokens=16000)
                 out = extract_json(text)
                 rec['ms'] = ms; rec['reasoning_chars'] = rlen
                 rec['usage'] = {k: usage.get(k) for k in ('prompt_tokens', 'completion_tokens', 'total_tokens')}
@@ -161,11 +163,34 @@ def main():
                                 'status': str(out.get('status') or '')[:20],
                                 'summary': summ[:200],
                                 'lead': str(out.get('lead') or '')[:80]})
-                    log('r%d %s OK %dms 字数=%d 首句=%d status=%s' % (rnd, cid, ms, len(summ), len(first), rec['status']))
+                    log('r%d %s OK %dms 字数=%d 首句=%d status=%s usage=%s reasoning=%d' % (rnd, cid, ms, len(summ), len(first), rec['status'], rec['usage'], rlen))
                 else:
                     rec.update({'parse': 'FAIL', 'raw_head': text[:300]})
                     log('r%d %s JSON解析失败 raw=%s' % (rnd, cid, text[:120]))
             except urllib.error.HTTPError as e:
+                if e.code == 429:
+                    time.sleep(20)
+                    try:
+                        text, ms, usage, rlen = groq_chat(key, model, msgs, max_tokens=16000)
+                        out = extract_json(text)
+                        rec['ms'] = ms; rec['reasoning_chars'] = rlen
+                        rec['usage'] = {k: usage.get(k) for k in ('prompt_tokens', 'completion_tokens', 'total_tokens')}
+                        if out:
+                            ok_parse += 1
+                            summ = str(out.get('summary') or '')
+                            lens.append(len(summ))
+                            first = re.split(r'[。！？]', summ)[0] if summ else ''
+                            rec.update({'parse': 'ok-retry', 'summary_len': len(summ), 'first_len': len(first),
+                                        'status': str(out.get('status') or '')[:20],
+                                        'summary': summ[:200], 'lead': str(out.get('lead') or '')[:80]})
+                            log('r%d %s OK(429重试) %dms 字数=%d status=%s usage=%s' % (rnd, cid, ms, len(summ), rec['status'], rec['usage']))
+                        else:
+                            rec.update({'parse': 'FAIL-retry', 'raw_head': text[:300]})
+                            log('r%d %s 重试后解析失败 raw=%s' % (rnd, cid, text[:120]))
+                        report['runs'].append(rec); time.sleep(8); continue
+                    except Exception as e2:
+                        rec.update({'parse': 'HTTP429-retry-fail', 'err': str(e2)[:120]})
+                        log('r%d %s 429重试仍失败' % (rnd, cid)); report['runs'].append(rec); time.sleep(8); continue
                 rec.update({'parse': 'HTTP%d' % e.code, 'err': str(e)[:120]})
                 log('r%d %s HTTP%d' % (rnd, cid, e.code))
             except Exception as e:
@@ -178,6 +203,39 @@ def main():
                        'parse_rate': '%.0f%%' % (100.0 * ok_parse / max(1, total)),
                        'summary_lens': lens,
                        'len_ok_40_160': sum(1 for n in lens if 40 <= n <= 160)}
+    # 4) 对照组：kimi-k2-instruct（非推理模型，输出不被思考挤占）跑1轮5卡
+    if 'moonshotai/kimi-k2-instruct' in avail:
+        log('===== 对照组 kimi-k2-instruct 1轮 =====')
+        alt = 'moonshotai/kimi-k2-instruct'
+        for cid in ('iran', 'fed', 'ukraine', 'apec', 'huang'):
+            prev_card = cards.get(cid) if isinstance(cards.get(cid), dict) else None
+            news = nmap.get(cid) or []
+            if isinstance(news, dict): news = [str(v) for v in news.values()]
+            news = [str(x) for x in news][:30]
+            yesterday = {k: prev_card.get(k) for k in ('status', 'progress_line', 'summary', 'facts')} if prev_card else {}
+            prompt = build_user_prompt(cid, '\n'.join('- ' + n for n in news) or '（今日无关联新闻）',
+                                       ODDS_DEFAULT.get(cid, ''), yesterday)
+            msgs = [{'role': 'system', 'content': SYS}, {'role': 'user', 'content': prompt}]
+            rec = {'round': 'alt', 'card': cid, 'model': alt}
+            try:
+                text, ms, usage, rlen = groq_chat(key, alt, msgs, max_tokens=4000)
+                out = extract_json(text)
+                rec['ms'] = ms
+                rec['usage'] = {k: usage.get(k) for k in ('prompt_tokens', 'completion_tokens')}
+                if out:
+                    summ = str(out.get('summary') or '')
+                    first = re.split(r'[。！？]', summ)[0] if summ else ''
+                    rec.update({'parse': 'ok', 'summary_len': len(summ), 'first_len': len(first),
+                                'status': str(out.get('status') or '')[:20], 'summary': summ[:200]})
+                    log('alt %s OK %dms 字数=%d 首句=%d status=%s usage=%s' % (cid, ms, len(summ), len(first), rec['status'], rec['usage']))
+                else:
+                    rec.update({'parse': 'FAIL', 'raw_head': text[:300]})
+                    log('alt %s 解析失败 raw=%s' % (cid, text[:120]))
+            except Exception as e:
+                rec.update({'parse': type(e).__name__, 'err': str(e)[:120]})
+                log('alt %s %s' % (cid, type(e).__name__))
+            report['runs'].append(rec); time.sleep(8)
+
     outp = os.path.join(HERE, '..', 'data', '_groq_heavy_test.json')
     with open(outp, 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
