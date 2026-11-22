@@ -117,7 +117,7 @@ def _groq(model, heavy=False):
         msg = (d.get('choices') or [{}])[0].get('message') or {}
         text = msg.get('content') or ''
         if not text: raise RuntimeError('groq empty content')
-        return text, 'groq/' + model
+        return text, 'groq/' + model.replace('qwen/', '')
     return call
 
 
