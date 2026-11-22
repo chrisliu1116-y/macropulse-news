@@ -57,36 +57,78 @@ def _zhipu(model, temperature=None):
     return call
 
 def _gemini(model):
+    """普通档 Gemini（v539 多key轮询）：遇 429/报错必须把全部 key 轮流试完才抛，
+    让上层 chat() 再切下一个模型——硬性要求：不能第一个 key 报错就跳走。"""
     def call(messages, max_tokens, timeout):
-        key = os.environ.get('GEMINI_KEY', '')
-        if not key: raise RuntimeError('no GEMINI_KEY')
+        keys = _gemini_keys()   # 与重型链共用：GEMINI_KEY/API_KEY/API_KEYS 逗号拆分
+        if not keys: raise RuntimeError('no gemini key')
         parts = [{'role': 'user', 'parts': [{'text': m.get('content', '')}]} for m in messages]
-        # v449【按模型版本关思考·防后台深度思考拖慢兜底】(2026-11-19 实测):
-        #   · Gemini 3.x → thinkingConfig.thinkingLevel='minimal'（实测 OK 2.07s；
-        #     不带该参数曾遇 503 高需求，minimal 走轻量通道反而稳）。
-        #   · Gemini 2.5 → thinkingConfig.thinkingBudget=0（若启用 2.5 系列时用）。
-        #   · flash-lite 系列(如 gemini-flash-lite-latest)本身无思考能力，
-        #     **绝不能传** thinkingConfig —— 实测传 thinkingBudget:0 返回 400 INVALID_ARGUMENT。
+        # v449：Gemini 3.x 关思考走轻量；flash-lite 绝不能传 thinkingConfig（400）
         gc = {'maxOutputTokens': max_tokens}
         if model.startswith('gemini-3'):
             gc['thinkingConfig'] = {'thinkingLevel': 'minimal'}
         elif model.startswith('gemini-2.5') and 'flash' in model:
             gc['thinkingConfig'] = {'thinkingBudget': 0}
         body = {'contents': parts, 'generationConfig': gc}
-        url = GEMINI_BASE + model + ':generateContent?key=' + key
-        req = urllib.request.Request(url, data=json.dumps(body).encode(),
-            headers={'Content-Type': 'application/json'})
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            d = json.loads(r.read().decode())
-        return d['candidates'][0]['content']['parts'][0]['text'] or '', 'gemini/' + model
+        last = None
+        for ki, key in enumerate(keys):
+            url = GEMINI_BASE + model + ':generateContent?key=' + key
+            req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                headers={'Content-Type': 'application/json'})
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    d = json.loads(r.read().decode())
+            except urllib.error.HTTPError as e:
+                last = e
+                if e.code == 429: print('[llm] gemini key#%d 429 切下一个 (%d/%d)' % (ki+1,ki+1,len(keys)))
+                else: print('[llm] gemini key#%d HTTP%d' % (ki+1, e.code))
+                continue
+            except Exception as e:
+                last = e
+                print('[llm] gemini key#%d %s' % (ki+1, type(e).__name__))
+                continue
+            text = (d.get('candidates') or [{}])[0].get('content', {}).get('parts', [{}])[0].get('text') or ''
+            if not text:
+                last = RuntimeError('empty text'); continue
+            return text, 'gemini/' + model
+        if isinstance(last, urllib.error.HTTPError):
+            raise urllib.error.HTTPError(last.url, last.code, 'all %d gemini keys failed' % len(keys), last.headers, last.fp)
+        raise RuntimeError('all %d gemini keys failed' % len(keys))
     return call
 
-# 有序降级链：按实测速度排；每项 (通道名, 调用函数, 所需key环境变量)
-# 两路 key：ZHIPU_KEY(智谱) / GEMINI_KEY(Google AI Studio)。同一 key 下多模型共用。
+GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+
+
+def _groq(model, heavy=False):
+    """Groq 通道（OpenAI 兼容）。heavy=True 用 gpt-oss-120b + reasoning_effort=low，
+    给足 max_tokens 防推理挤占正文（v538 验收结论）。普通档用 llama-3.3-70b。"""
+    def call(messages, max_tokens, timeout):
+        key = os.environ.get('GROQ_KEY', '') or os.environ.get('GROQ_API_KEY', '')
+        if not key: raise RuntimeError('no GROQ_KEY')
+        body = {'model': model, 'messages': messages, 'max_tokens': max_tokens}
+        if heavy:
+            body['reasoning_effort'] = 'low'
+        req = urllib.request.Request(GROQ_URL, data=json.dumps(body).encode(),
+            headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            d = json.load(r)
+        msg = (d.get('choices') or [{}])[0].get('message') or {}
+        text = msg.get('content') or ''
+        if not text: raise RuntimeError('groq empty content')
+        return text, 'groq/' + model
+    return call
+
+
+# 有序降级链（v539 四场景分工之普通档）：Groq 主 → Gemini 兜底 → 智谱最后。
+# 每项 (通道名, 调用函数, 所需key环境变量)。
 CHANNELS = [
-    ('zhipu/' + ZHIPU_MODEL,            _zhipu(ZHIPU_MODEL),   'ZHIPU_KEY'),
+    # v539 普通档主：Groq llama-3.3-70b（场景3新卡判定 / 场景4异动归因主通道）
+    ('groq/llama-3.3-70b-versatile',    _groq('llama-3.3-70b-versatile'),     'GROQ_KEY'),
+    # Gemini 普通兜底（内部会把全部 key 轮流试完才抛；含两个 lite 模型）
     ('gemini/gemini-flash-lite-latest', _gemini('gemini-flash-lite-latest'), 'GEMINI_KEY'),
     ('gemini/gemini-3.1-flash-lite',    _gemini('gemini-3.1-flash-lite'),    'GEMINI_KEY'),
+    # 智谱最后兜底
+    ('zhipu/' + ZHIPU_MODEL,            _zhipu(ZHIPU_MODEL),   'ZHIPU_KEY'),
 ]
 
 def _configured(key_env):
@@ -244,7 +286,7 @@ def _gemini_heavy(model, thinking_cfg, temperature=None):
         raise RuntimeError('all %d gemini keys failed: %s' % (len(keys), type(last).__name__ if last else 'none'))
     return call
 
-def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True, temperature=None, allow_zhipu=True, zhipu_first=False):
+def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True, temperature=None, allow_zhipu=True, zhipu_first=False, groq_fallback=False):
     """【内部单轮】深度思考 + 重型主力有序降级 + 兜底。
     返回 (text, channel)；全挂抛 AllModelsFailed（调用方回退本地规则）。
     · 探测可用模型名单（GET /v1beta/models），不可用别名不写死在首位。
@@ -272,6 +314,17 @@ def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True, tempe
             errs.append('zhipu/glm-z1-flash:%s' % type(e).__name__)
             if verbose: print('[llm-heavy] 智谱 %s 失败' % why)
             return None
+    def _try_groq_heavy(why):
+        if not (os.environ.get('GROQ_KEY') or os.environ.get('GROQ_API_KEY')): return None
+        t = time.time()
+        try:
+            text, ch = _groq('openai/gpt-oss-120b', heavy=True)(messages, max_tokens, timeout)
+            if verbose: print('[llm-heavy] %s ok %.1fs (%s)' % (ch, time.time() - t, why))
+            return text, ch + '(heavy-' + why + ')'
+        except Exception as e:
+            errs.append('groq/gpt-oss-120b:%s' % type(e).__name__)
+            if verbose: print('[llm-heavy] Groq %s 失败: %s' % (why, type(e).__name__))
+            return None
     def _try_gemini(why):
         for name, model, tcfg in HEAVY_CHAIN:
             if not _gemini_keys():
@@ -291,10 +344,20 @@ def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True, tempe
                 errs.append('%s:%s' % (name, type(e).__name__))
                 if verbose: print('[llm-heavy] %s %s失败 %s (全部key试尽)' % (name, why, type(e).__name__))
         return None
-    # v537【用户拍板通道顺序】zhipu_first 控制主通道，两种模式：
-    #   zhipu_first=False → Gemini 主 + 智谱兜底（事件卡/确认后写卡）
-    #   zhipu_first=True  → 智谱主 + Gemini 兜底（新卡判定，人工把关省 Gemini 额度）
-    if zhipu_first:
+    # v539【用户最终拍板四场景】重型链顺序：
+    #   groq_fallback=True  → Gemini 主（全部3个key试尽才失败）+ Groq 重型兜底；
+    #                         场景1卡片更新/场景2确认后写卡调此模式，allow_zhipu=False 禁智谱
+    #   zhipu_first=True    → 智谱主 + Gemini 兜底（v537 兼容，已无场景使用）
+    #   默认                → Gemini 主 + 智谱兜底（兼容旧调用方）
+    if groq_fallback:
+        r = _try_gemini('primary')
+        if r: return r
+        r = _try_groq_heavy('fallback')
+        if r: return r
+        if allow_zhipu:   # 仅当调用方显式允许才用智谱（场景1/2 传 False 禁用）
+            r = _try_zhipu('last-resort')
+            if r: return r
+    elif zhipu_first:
         r = _try_zhipu('primary') if allow_zhipu else None
         if r: return r
         r = _try_gemini('fallback')
@@ -315,7 +378,7 @@ HEAVY_RETRY_BACKOFFS = (120, 300, 600, 900, 1200)   # 秒
 HEAVY_RETRY_TOTAL = 3600                             # 累计等待上限60分钟
 
 def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True, temperature=None,
-               allow_zhipu=True, retry_total=None, zhipu_first=False):
+               allow_zhipu=True, retry_total=None, zhipu_first=False, groq_fallback=False):
     """事件卡片专用重型思考调用(带阶梯退避重试)。
     双通道全失败时按 2/5/10/15/20 分钟退避重试,累计等待≤60分钟;
     一旦智谱 glm-z1-flash 或 Gemini 思考模型恢复立即返回。绝不降级 glm-4-flash/flash-lite。
@@ -336,7 +399,7 @@ def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True, temperature
             time.sleep(backoff)
             waited += backoff
         try:
-            return _chat_heavy_once(messages, max_tokens=max_tokens, timeout=timeout, verbose=verbose, temperature=temperature, allow_zhipu=allow_zhipu, zhipu_first=zhipu_first)
+            return _chat_heavy_once(messages, max_tokens=max_tokens, timeout=timeout, verbose=verbose, temperature=temperature, allow_zhipu=allow_zhipu, zhipu_first=zhipu_first, groq_fallback=groq_fallback)
         except AllModelsFailed as e:
             last_err = str(e)
             if verbose: print('[llm-heavy-retry] 本轮双通道全失败: %s' % last_err[:120])

@@ -122,9 +122,11 @@ def try_incubate(candidates, existing_themes, verbose=True):
               + '\n'.join('- ' + str(t) for t in existing_themes) + '\n\n'
               '请严格按系统规则判断是否构成新的重大事件并输出卡片配置 JSON。')
     try:
-        text, ch = chat_heavy([{'role': 'system', 'content': INCUBATOR_SYS},
-                         {'role': 'user', 'content': prompt}], max_tokens=2000, timeout=100, verbose=verbose,
-                         zhipu_first=True)
+        # v539 用户最终拍板：新卡判定改【普通档】——Groq普通主 → Gemini普通兜底 → 智谱普通最后。
+        # 新卡只是给人工看的候选（用户最终判定是否加入），普通模型足够，省重型额度。
+        # chat() 内部 Gemini 会把 3 个 key 全部试完才切下一个模型。
+        text, ch = chat([{'role': 'system', 'content': INCUBATOR_SYS},
+                   {'role': 'user', 'content': prompt}], max_tokens=2000, timeout=100, verbose=verbose)
     except AllModelsFailed:
         return None, 'local-rule', 'LLM全挂，跳过建卡'
     m = re.search(r'\{[\s\S]*\}', text)
