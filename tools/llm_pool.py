@@ -244,64 +244,67 @@ def _gemini_heavy(model, thinking_cfg, temperature=None):
         raise RuntimeError('all %d gemini keys failed: %s' % (len(keys), type(last).__name__ if last else 'none'))
     return call
 
-def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True, temperature=None, allow_zhipu=True):
-    """【内部单轮】深度思考 + 重型主力有序降级 + 智谱兜底。
+def _chat_heavy_once(messages, max_tokens=2000, timeout=100, verbose=True, temperature=None, allow_zhipu=True, zhipu_first=False):
+    """【内部单轮】深度思考 + 重型主力有序降级 + 兜底。
     返回 (text, channel)；全挂抛 AllModelsFailed（调用方回退本地规则）。
     · 探测可用模型名单（GET /v1beta/models），不可用别名不写死在首位。
     · Gemini 3.x → thinkingLevel:high；2.5 → thinkingBudget:8192。
-    · 404/429/503 自动跳下一路，绝不中断。"""
+    · 404/429/503 自动跳下一路，绝不中断。
+    · zhipu_first=False（默认）：Gemini 主 + 智谱兜底（事件卡 allow_zhipu=False 时纯 Gemini）。
+    · zhipu_first=True（v537 用户拍板新卡判定用）：智谱 glm-z1-flash 主 + Gemini 兜底——
+      新卡只是给人工看的候选，最终由用户判定要不要加入，智谱质量足够；省下 Gemini 额度。"""
     if isinstance(messages, str):
         messages = [{'role': 'user', 'content': messages}]
     names, heavy = probe_models()
     if verbose:
         print('[llm-heavy] 探测到 %d 模型, 可用重型 %d 个' % (len(names), len(heavy)))
     errs = []
-    # v505【主备对调·用户拍板】gemini-3-flash-preview(deep,thinkingLevel:high)升主通道;
-    # 实测glm-z1-flash指令遵循不足(丢核心新闻/编造不同CME概率/把规则抄进status),
-    # 而gemini在apec第3次表现极佳。智谱退为备用+最后兜底。
-    # 0) Gemini 重型主通道（仅当该模型在探测名单里才尝试；探测失败则不限制，交给兜底）
-    for name, model, tcfg in HEAVY_CHAIN:
-        if not _gemini_keys():
-            break
-        if heavy and model not in heavy:   # 探测成功但此模型不在名单 → 跳过
-            continue
-        t = time.time()
-        try:
-            fn = _gemini_heavy(model, tcfg, temperature)
-            text, ch = fn(messages, max_tokens, timeout)
-            if verbose: print('[llm-heavy] %s ok %.1fs (deep thinking, PRIMARY)' % (ch, time.time() - t))
-            return text, ch + '(deep-primary)'
-        except urllib.error.HTTPError as e:
-            errs.append('%s:HTTP%s' % (name, e.code))
-            if verbose: print('[llm-heavy] %s 主通道失败 HTTP%d (全部key试尽)' % (name, e.code))
-        except Exception as e:
-            errs.append('%s:%s' % (name, type(e).__name__))
-            if verbose: print('[llm-heavy] %s 主通道失败 %s (全部key试尽)' % (name, type(e).__name__))
-        # 不再打印笼统的 failed,next(上面已打印具体状态码)
-    # 1) 智谱 glm-z1-flash 降为备用通道（allow_zhipu=False 时跳过=纯Gemini）
-    if allow_zhipu and _configured('ZHIPU_KEY'):
+    def _try_zhipu(why):
+        if not (_configured('ZHIPU_KEY')): return None
         t = time.time()
         try:
             text, ch = _zhipu('glm-z1-flash', temperature)(messages, max_tokens, timeout)
             import re as _re
             text = _re.sub(r'<think>[\s\S]*?</think>', '', text).strip()
-            if verbose: print('[llm-heavy] 智谱 glm-z1-flash(deep) ok %.1fs (fallback)' % (time.time() - t))
-            return text, ch + '(deep-fallback)'
+            if verbose: print('[llm-heavy] 智谱 glm-z1-flash(deep) ok %.1fs (%s)' % (time.time() - t, why))
+            return text, ch + '(deep-' + why + ')'
         except Exception as e:
             errs.append('zhipu/glm-z1-flash:%s' % type(e).__name__)
-            if verbose: print('[llm-heavy] 智谱备用通道失败, 转最后兜底')
-    # 2) 智谱最后兜底（allow_zhipu=False 时跳过=纯Gemini）
-    if allow_zhipu and _configured('ZHIPU_KEY'):
-        for zm in ('glm-z1-flash',):
+            if verbose: print('[llm-heavy] 智谱 %s 失败' % why)
+            return None
+    def _try_gemini(why):
+        for name, model, tcfg in HEAVY_CHAIN:
+            if not _gemini_keys():
+                break
+            if heavy and model not in heavy:
+                continue
             t = time.time()
             try:
-                text, ch = _zhipu(zm, temperature)(messages, max_tokens, timeout)
-                import re as _re
-                text = _re.sub(r'<think>[\s\S]*?</think>', '', text).strip()
-                if verbose: print('[llm-heavy] 智谱重型兜底 %s ok %.1fs' % (ch, time.time() - t))
-                return text, ch + '(heavy-fallback)'
+                fn = _gemini_heavy(model, tcfg, temperature)
+                text, ch = fn(messages, max_tokens, timeout)
+                if verbose: print('[llm-heavy] %s ok %.1fs (deep thinking, %s)' % (ch, time.time() - t, why))
+                return text, ch + '(deep-' + why + ')'
+            except urllib.error.HTTPError as e:
+                errs.append('%s:HTTP%s' % (name, e.code))
+                if verbose: print('[llm-heavy] %s %s失败 HTTP%d (全部key试尽)' % (name, why, e.code))
             except Exception as e:
-                errs.append('zhipu/%s:%s' % (zm, type(e).__name__))
+                errs.append('%s:%s' % (name, type(e).__name__))
+                if verbose: print('[llm-heavy] %s %s失败 %s (全部key试尽)' % (name, why, type(e).__name__))
+        return None
+    # v537【用户拍板通道顺序】zhipu_first 控制主通道，两种模式：
+    #   zhipu_first=False → Gemini 主 + 智谱兜底（事件卡/确认后写卡）
+    #   zhipu_first=True  → 智谱主 + Gemini 兜底（新卡判定，人工把关省 Gemini 额度）
+    if zhipu_first:
+        r = _try_zhipu('primary') if allow_zhipu else None
+        if r: return r
+        r = _try_gemini('fallback')
+        if r: return r
+    else:
+        r = _try_gemini('primary')
+        if r: return r
+        if allow_zhipu:
+            r = _try_zhipu('fallback')
+            if r: return r
     raise AllModelsFailed('; '.join(errs) if errs else 'no heavy channels available')
 
 # v502【用户拍板:双通道全失败不跳过等下一班,阶梯退避重试】
@@ -312,12 +315,13 @@ HEAVY_RETRY_BACKOFFS = (120, 300, 600, 900, 1200)   # 秒
 HEAVY_RETRY_TOTAL = 3600                             # 累计等待上限60分钟
 
 def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True, temperature=None,
-               allow_zhipu=True, retry_total=None):
+               allow_zhipu=True, retry_total=None, zhipu_first=False):
     """事件卡片专用重型思考调用(带阶梯退避重试)。
     双通道全失败时按 2/5/10/15/20 分钟退避重试,累计等待≤60分钟;
     一旦智谱 glm-z1-flash 或 Gemini 思考模型恢复立即返回。绝不降级 glm-4-flash/flash-lite。
     v464：retry_total 可覆盖累计等待上限（秒）——event_incubator 等长跑链路传短值，
     避免 LLM 全挂时睡满60分钟霸占 workflow 并发锁。None=用全局默认3600（兼容其它调用方）。
+    v537：zhipu_first=True 时智谱主 + Gemini 兜底（新卡判定用）。
     """
     cap = HEAVY_RETRY_TOTAL if retry_total is None else max(0, int(retry_total))
     waited = 0
@@ -332,7 +336,7 @@ def chat_heavy(messages, max_tokens=2000, timeout=100, verbose=True, temperature
             time.sleep(backoff)
             waited += backoff
         try:
-            return _chat_heavy_once(messages, max_tokens=max_tokens, timeout=timeout, verbose=verbose, temperature=temperature, allow_zhipu=allow_zhipu)
+            return _chat_heavy_once(messages, max_tokens=max_tokens, timeout=timeout, verbose=verbose, temperature=temperature, allow_zhipu=allow_zhipu, zhipu_first=zhipu_first)
         except AllModelsFailed as e:
             last_err = str(e)
             if verbose: print('[llm-heavy-retry] 本轮双通道全失败: %s' % last_err[:120])

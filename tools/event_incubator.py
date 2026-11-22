@@ -123,7 +123,8 @@ def try_incubate(candidates, existing_themes, verbose=True):
               '请严格按系统规则判断是否构成新的重大事件并输出卡片配置 JSON。')
     try:
         text, ch = chat_heavy([{'role': 'system', 'content': INCUBATOR_SYS},
-                         {'role': 'user', 'content': prompt}], max_tokens=2000, timeout=100, verbose=verbose)
+                         {'role': 'user', 'content': prompt}], max_tokens=2000, timeout=100, verbose=verbose,
+                         zhipu_first=True)
     except AllModelsFailed:
         return None, 'local-rule', 'LLM全挂，跳过建卡'
     m = re.search(r'\{[\s\S]*\}', text)

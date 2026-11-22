@@ -88,7 +88,7 @@ def gemini_complete(card, g):
             '实体: ' + ','.join(g.get('entities') or []) + '\n'
             '国内新闻佐证: ' + (g.get('cf_titles') or '')[:200]
         )
-        text, ch = chat_heavy([{'role': 'user', 'content': prompt}], max_tokens=400, timeout=90)
+        text, ch = chat_heavy([{'role': 'user', 'content': prompt}], max_tokens=400, timeout=90, allow_zhipu=False)
         m = re.search(r'\{[\s\S]*?\}', text)
         if not m:
             log('Gemini 返回无法解析:', text[:80]); return card, ch
