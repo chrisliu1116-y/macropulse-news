@@ -165,7 +165,8 @@ def gemini_complete(card, g):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--radar', default='https://raw.githubusercontent.com/chrisliu1116-y/insum-cloud/main/tools/polymarket_radar_shadow.json')
+    # v538b：事件卡链路已全迁 macropulse-news，默认读本仓库本地产物（原 insum raw URL 已弃用）
+    ap.add_argument('--radar', default=os.path.join(HERE, '..', 'data', '_radar_shadow.json'))
     ap.add_argument('--events', default=os.path.join(HERE, '..', 'data', 'events_daily.json'))
     ap.add_argument('--dry-run', action='store_true')
     a = ap.parse_args()

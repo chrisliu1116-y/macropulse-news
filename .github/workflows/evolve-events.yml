@@ -86,7 +86,8 @@ jobs:
       - name: LLM 提纯重写卡片
         env:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
-          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY || secrets.GEMINI_API_KEYS }}
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS || secrets.GEMINI_KEY }}
         run: |
           python3 tools/evolve_events.py \
             --news data/events_news_today.json \
@@ -96,7 +97,8 @@ jobs:
       - name: 自动建卡 + 双轨归档（自治）
         env:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
-          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY || secrets.GEMINI_API_KEYS }}
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS || secrets.GEMINI_KEY }}
         run: |
           # v501修复：build_news_map.py 已从 CF 池顺手导出当日 S/A 分级条目，
           # 替换掉之前读不到的旧贴标产物(daily_news_graded/llm_news_full)链路断裂问题。
@@ -129,7 +131,8 @@ jobs:
         # 只在 CF /__card-confirm 回执里已确认的候选才调 Gemini 补全三段式。
         env:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
-          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY || secrets.GEMINI_API_KEYS }}
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS || secrets.GEMINI_KEY }}
         run: |
           python3 tools/radar_publish.py \
             --radar data/_radar_shadow.json \
