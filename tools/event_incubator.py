@@ -301,7 +301,8 @@ def main():
     for it in results:
         idx = it.get('title_idx')
         if it.get('card_id') != 'none' or it.get('is_dup'): continue
-        if it.get('level') not in ('S', 'A'): continue
+        # v536：不再筛 level——build_news_map 已按来源白名单定候选、level 为 'A' 占位。
+        # 真正的过滤在下方：主题聚类≥3 + is_pure_market_noise 负面清单 + Polymarket 硬门槛。
         src_item = news_by_idx.get(idx, {}) or {}
         if not src_item and isinstance(raw, list) and idx < len(raw): src_item = raw[idx] if isinstance(raw[idx], dict) else {}
         # 时间过滤：有 ts 才过滤（支持秒/毫秒/字符串）

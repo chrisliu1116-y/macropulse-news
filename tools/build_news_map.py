@@ -75,14 +75,19 @@ def main():
     # v502【输入硬倒序】每卡最多12条,若不显式排序,池顺序一变最新主线进展就会被截断。
     items = sorted(items, key=lambda x: x.get('ts') or 0, reverse=True)
     # v501【顺手导出建卡器输入】event_incubator 期望 {"results":[{title,level,card_id,is_dup,ts,title_idx}]}
-    # 之前它读的 daily_news_graded.json 是已下线的全量贴标产物,链路断裂导致永远空输入。
-    # 这里用同一份 CF 池条目直接生成,避免重复拉取。只取 S/A + 过去24h + 轻量标题去重。
+    # v536【绕开LLM分级筛子】旧逻辑只取 it.get('level') in ('S','A')，但 CF 池条目已无 level 字段
+    # （NEWS_AI_LABELING=false 停贴标后），导致永远 0 条、新卡机制空转。改为按「来源白名单」定高优：
+    # 这些源（财联社/金十/华尔街见闻/格隆汇/财联社深度等）本身就是高可信源，直接视为候选；
+    # level 填 'A' 仅作占位（供 _fmt_news 显示），真正过滤交给下游：主题聚类 + is_pure_market_noise
+    # 负面清单 + Polymarket 活跃合约硬门槛（反推热度才是核心，分级本就不是必需）。
     try:
         import time as _t, re as _re
+        HIGH_VALUE_SRCS = ('财联社', '金十数据', '华尔街见闻', '格隆汇', '财联社深度',
+                           '川普言论', '口罩哥KZG')
         cutoff = (_t.time() - 24 * 3600) * 1000
         seen = set(); results = []
         for i, it in enumerate(items):
-            if it.get('level') not in ('S', 'A'):
+            if str(it.get('src') or '').strip() not in HIGH_VALUE_SRCS:
                 continue
             ts = it.get('ts') or 0
             if ts and ts < cutoff:
@@ -94,7 +99,7 @@ def main():
             if tkey in seen:
                 continue
             seen.add(tkey)
-            results.append({'title': title, 'level': it['level'],
+            results.append({'title': title, 'level': 'A',
                             'card_id': 'none', 'is_dup': False,
                             'ts': ts, 'title_idx': 'cf_%s' % str(it.get('id') or i)[:20]})
         # v502: 按 ts 倒序(最新在前),确保 evolve_events.py 的 news[:30] 截断不会漏掉最新核心进展
