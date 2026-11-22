@@ -163,7 +163,8 @@ def main():
                                 'status': str(out.get('status') or '')[:20],
                                 'summary': summ[:200],
                                 'lead': str(out.get('lead') or '')[:80]})
-                    log('r%d %s OK %dms 字数=%d 首句=%d status=%s usage=%s reasoning=%d' % (rnd, cid, ms, len(summ), len(first), rec['status'], rec['usage'], rlen))
+                    log('r%d %s OK %dms 字数=%d 首句=%d status=%s keys=%s' % (rnd, cid, ms, len(summ), len(first), rec['status'], sorted(out.keys())))
+                    log('r%d %s RAW >>> %s' % (rnd, cid, text[:1000].replace(chr(10),' | ')))
                 else:
                     rec.update({'parse': 'FAIL', 'raw_head': text[:300]})
                     log('r%d %s JSON解析失败 raw=%s' % (rnd, cid, text[:120]))
@@ -204,9 +205,9 @@ def main():
                        'summary_lens': lens,
                        'len_ok_40_160': sum(1 for n in lens if 40 <= n <= 160)}
     # 4) 对照组：kimi-k2-instruct（非推理模型，输出不被思考挤占）跑1轮5卡
-    if 'moonshotai/kimi-k2-instruct' in avail:
-        log('===== 对照组 kimi-k2-instruct 1轮 =====')
-        alt = 'moonshotai/kimi-k2-instruct'
+    if 'llama-3.3-70b-versatile' in avail:
+        log('===== 对照组 llama-3.3-70b 1轮 =====')
+        alt = 'llama-3.3-70b-versatile'
         for cid in ('iran', 'fed', 'ukraine', 'apec', 'huang'):
             prev_card = cards.get(cid) if isinstance(cards.get(cid), dict) else None
             news = nmap.get(cid) or []
@@ -227,7 +228,8 @@ def main():
                     first = re.split(r'[。！？]', summ)[0] if summ else ''
                     rec.update({'parse': 'ok', 'summary_len': len(summ), 'first_len': len(first),
                                 'status': str(out.get('status') or '')[:20], 'summary': summ[:200]})
-                    log('alt %s OK %dms 字数=%d 首句=%d status=%s usage=%s' % (cid, ms, len(summ), len(first), rec['status'], rec['usage']))
+                    log('alt %s OK %dms 字数=%d 首句=%d status=%s keys=%s' % (cid, ms, len(summ), len(first), rec['status'], sorted(out.keys())))
+                    log('alt %s RAW >>> %s' % (cid, text[:800].replace(chr(10),' | ')))
                 else:
                     rec.update({'parse': 'FAIL', 'raw_head': text[:300]})
                     log('alt %s 解析失败 raw=%s' % (cid, text[:120]))
