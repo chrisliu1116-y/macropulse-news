@@ -38,13 +38,26 @@ def get_json(url, timeout=20):
 
 
 def read_confirms():
-    """读 CF 确认回执（前端点加入才写）。失败返回空 → 零 Gemini 调用。"""
+    """读 CF 确认回执（前端点加入才写）。返回 {cid: {name,...}}。失败返回空 → 零 Gemini 调用。"""
     try:
         d = get_json(CONFIRM_URL)
-        return {str(x.get('cid')) for x in (d.get('items') or []) if x and x.get('cid')}
+        return {str(x.get('cid')): x for x in (d.get('items') or []) if x and x.get('cid')}
     except Exception as e:
         log('读回执失败:', type(e).__name__, '→ 本次零确认、零 Gemini')
-        return set()
+        return {}
+
+# v538【末位淘汰APP确认】CF 淘汰确认回执端点（用户在APP确认归档）
+ARCHIVE_CONFIRM_URL = 'https://macropulse-api.pages.dev/__card-archive-confirm'
+
+
+def read_archive_confirms():
+    """读 APP 淘汰确认回执：返回 {cid: 回执}。空=不归档任何卡。"""
+    try:
+        d = get_json(ARCHIVE_CONFIRM_URL)
+        return {str(x.get('cid')): x for x in (d.get('items') or []) if x and x.get('cid')}
+    except Exception as e:
+        log('读淘汰回执失败:', type(e).__name__, '→ 本次零归档')
+        return {}
 
 
 def heat(c):
@@ -56,20 +69,62 @@ def cid_for(title):
     return 'auto_radar_' + slug
 
 
-def make_skeleton(g):
-    """骨架卡：只有标题/类别/实体/CF佐证，summary 用占位——不调 Gemini。"""
+def prepare_skeleton_info(g):
+    """v538【骨架预整理】建骨架前用智谱重型整理：中文卡名 + 看点说明 + 关联新闻筛选。
+    失败返回 None，make_skeleton 回退用原始英文名——绝不因 LLM 失败卡住建卡。
+    用户拍板：新卡判定与骨架预整理都用智谱（人工把关，省 Gemini 额度）。"""
+    try:
+        from llm_pool import _zhipu
+        news = ' / '.join((g.get('cf_titles') or '').split(' / ')[:5])
+        prompt = (
+            '你是金融终端事件编辑。把下面的 Polymarket 事件整理成事件追踪卡的基础信息。\n'
+            '只输出严格 JSON（不要代码块）:\n'
+            '{"name":"简洁中文卡名(≤12字)","desc":"这个事件值得关注什么(≤40字)",'
+            '"focus":["关注点1","关注点2","关注点3"]}\n\n'
+            '事件原名: ' + str(g.get('title') or '') + '\n'
+            '24h成交额: $' + str(g.get('vol24h') or '') + '\n'
+            '距落地: ' + str(g.get('days_left') or '?') + '天\n'
+            '实体: ' + ','.join(g.get('entities') or []) + '\n'
+            '关联新闻: ' + news[:300]
+        )
+        text, ch = _zhipu('glm-z1-flash')([{'role': 'user', 'content': prompt}], 600, 60)
+        import re as _re
+        text = _re.sub(r'<think>[\s\S]*?</think>', '', text).strip()
+        m = _re.search(r'\{[\s\S]*\}', text)
+        if not m:
+            log('骨架预整理 JSON解析失败,回退原名:', text[:80]); return None
+        d = json.loads(_re.sub(r',\s*([}\]])', r'\1', m.group(0)))
+        return {'name': str(d.get('name') or '')[:16],
+                'desc': str(d.get('desc') or '')[:60],
+                'focus': [str(x)[:30] for x in (d.get('focus') or [])[:5]],
+                'channel': ch}
+    except Exception as e:
+        log('骨架预整理失败(回退原名):', type(e).__name__, str(e)[:80])
+        return None
+
+
+def make_skeleton(g, prepared=None):
+    """骨架卡：预整理信息(名称/看点/Polymarket链接/关联新闻)供人工确认——不调 Gemini。"""
     cid = cid_for(g['title'])
+    slug = str(g.get('slug') or '')
+    poly_url = ('https://polymarket.com/event/' + slug) if slug else ''
+    name = (prepared or {}).get('name') or str(g['title'])[:16]
+    desc = (prepared or {}).get('desc') or ''
+    focus = (prepared or {}).get('focus') or []
+    cf_titles = [x.strip() for x in (g.get('cf_titles') or '').split(' / ') if x.strip()][:5]
     return {
-        'id': cid, 'icon': '📡', 'title': g['title'][:16], 'cat': 'Polymarket雷达',
+        'id': cid, 'icon': '📡', 'title': name, 'cat': 'Polymarket雷达',
         'status': '待确认', 'statusCls': 'watch', 'hot': 2,
         'scope': {'core_subject': g['title'][:100],
-                  'stage_focus': (g.get('entities') or [])[:5],
+                  'stage_focus': focus or (g.get('entities') or [])[:5],
                   'exclude_noise': []},
-        'summary': 'Polymarket 净新增候选（$%s，CF 已验证）。待确认后生成三段式。' % g.get('vol24h'),
+        'proposed_name': name, 'proposed_desc': desc,
+        'related_news': cf_titles, 'poly_url': poly_url,
+        'summary': desc or ('Polymarket 净新增候选（$%s，CF 已验证）。待确认后生成三段式。' % g.get('vol24h')),
         'progress_line': '当前态势：待确认（Polymarket 雷达候选）',
         'facts': [g['title']], 'newsKeys': (g.get('entities') or [])[:6],
         'pred': {}, 'polymarket': {'title': g['title'], 'volume': g.get('vol24h'),
-                                   'matched_at': bjnow()},
+                                   'url': poly_url, 'matched_at': bjnow()},
         'auto_created': True, '_radar_pending': True, 'created_at': bjnow(),
         '_dormant': False, 'archived': False,
     }
@@ -134,47 +189,67 @@ def main():
         genuine.append(g)
 
     confirms = read_confirms()
-    log('净新增候选', len(genuine), 'CF确认回执', len(confirms))
+    archive_confirms = read_archive_confirms()
+    log('净新增候选', len(genuine), 'CF确认回执', len(confirms), '淘汰确认回执', len(archive_confirms))
 
-    # 1. 骨架入队（不调 Gemini）
+    # 1. 骨架入队（v538：用智谱预整理名称/看点/新闻，不调 Gemini）
     added = 0
     for g in genuine:
         cid = cid_for(g['title'])
         if cid in cards or any(c.get('title') == g['title'] for c in cards.values()):
             continue
-        cards[cid] = make_skeleton(g)
+        prepared = prepare_skeleton_info(g)   # v538 智谱预整理
+        cards[cid] = make_skeleton(g, prepared)
         added += 1
-        log('骨架入队', cid, g['title'][:30])
+        log('骨架入队', cid, cards[cid]['title'], '(名称来源:', (prepared or {}).get('channel', '原始'), ')')
     log('骨架新增', added)
 
-    # 2. 确认补全（只对已确认的调 Gemini）
+    # 2. 确认补全（只对已确认的调 Gemini；应用用户改名）
     completed = 0
-    for cid in confirms:
+    for cid, receipt in confirms.items():
         c = cards.get(cid)
         if not c or not c.get('_radar_pending'):
             continue
         g = next((x for x in genuine if cid_for(x['title']) == cid), None)
-        if not g:
-            continue
-        cards[cid], _ = gemini_complete(c, g)
+        # v538：用户在APP改的名，覆盖骨架名（Gemini 写内容时用改后的名）
+        user_name = str(receipt.get('name') or '').strip()
+        if user_name:
+            c['title'] = user_name[:16]
+            c['proposed_name'] = user_name[:16]
+            log('应用用户改名', cid, '→', c['title'])
+        cards[cid], _ = gemini_complete(c, g) if g else (c, 'none')
         completed += 1
     log('确认补全', completed, 'Gemini调用', completed)
 
-    # 3. 末位淘汰（活跃>5 → 归档最冷门）
+    # 3. 末位淘汰（v538：不再自动归档；活跃>5 标记候选，推APP确认后才归档）
     active = [cid for cid, c in cards.items() if not c.get('archived')]
-    archived = []
+    archive_candidates = []
     if len(active) > MAX_ACTIVE:
         cold = sorted(active, key=lambda cid: heat(cards[cid]))
-        for cid in cold[:len(active) - MAX_ACTIVE]:
-            cards[cid]['archived'] = True
-            cards[cid]['_auto_archived'] = True
-            cards[cid]['archived_at'] = time.strftime('%Y-%m-%d')
+        archive_candidates = cold[:len(active) - MAX_ACTIVE]
+        for cid in archive_candidates:
+            cards[cid]['_archive_candidate'] = True
+            log('末位淘汰候选(待APP确认)', cid, cards[cid].get('title'))
+    # 只对已在APP确认淘汰的候选执行归档
+    archived = []
+    for cid in archive_confirms:
+        c = cards.get(cid)
+        if c and c.get('_archive_candidate'):
+            c['archived'] = True
+            c['_auto_archived'] = True
+            c['archived_at'] = time.strftime('%Y-%m-%d')
+            c.pop('_archive_candidate', None)
             archived.append(cid)
-            log('末位淘汰归档', cid)
+            log('APP确认归档', cid)
+    # 清掉未被确认的淘汰候选标记（下一班重新评估）
+    for cid in archive_candidates:
+        if cid not in archived and cid in cards:
+            cards[cid].pop('_archive_candidate', None)
 
     events['generated'] = bjnow()
     events['radar_publish'] = {'generated': bjnow(), 'skeleton_added': added,
-                               'gemini_completed': completed, 'archived': archived}
+                               'gemini_completed': completed, 'archive_candidates': archive_candidates,
+                               'archived': archived}
     if not a.dry_run:
         with open(a.events, 'w', encoding='utf-8') as f:
             json.dump(events, f, ensure_ascii=False, indent=2)

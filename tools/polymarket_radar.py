@@ -97,21 +97,16 @@ CARD_EN_ALIASES = {
 
 
 def load_existing_cards():
-    """复用已打通的双池去重：events.js(人工卡) + events_daily.json(动态卡)。
-    返回 [{id,title,keys}]。keys 含英文别名，确保英文盘口能判重。只标注不写回。"""
+    """从 events_daily.json 读现有卡做去重。返回 [{id,title,keys}]。
+    keys 含英文别名，确保英文盘口能判重。只标注不写回。
+    v537 修复：删除失效的 load_h5_event_themes import（该函数早已从 event_incubator 移除，
+    每班打印 ImportError）。events_daily.json 已含全部5张卡（含 huang），是完整卡池。"""
     cards = []
-    try:
-        from event_incubator import load_h5_event_themes
-        h5 = load_h5_event_themes()                # events.js 5张(含 huang)
-        for c in h5:
-            c = dict(c)
-            c['keys'] = list(c.get('keys') or []) + CARD_EN_ALIASES.get(c.get('id'), [])
-            cards.append(c)
-    except Exception as e:
-        print('[radar] 读 events.js 卡失败:', type(e).__name__, flush=True)
     # 动态卡池 events_daily.json（title / scope.core_subject / facts 主题）
-    for p in (r'E:/WorkBuddy工作区/2026-11-03-23-29-44/data/events_daily.json',
-              os.path.join(HERE, '..', 'data', 'events_daily.json')):
+    # v537：本仓库路径优先——原本地绝对路径是给 Windows 调试用的，会先命中主站旧4卡
+    # （缺 huang）导致去重漏卡；GHA 上该路径不存在会 fallback，但顺序修正后更稳妥。
+    for p in (os.path.join(HERE, '..', 'data', 'events_daily.json'),
+              r'E:/WorkBuddy工作区/2026-11-03-23-29-44/data/events_daily.json'):
         try:
             with open(p, encoding='utf-8') as f:
                 d = json.load(f)
