@@ -51,16 +51,23 @@ jobs:
           if not c:
               print('card %s 不存在于 events_daily.json，跳过（不报错，幂等）' % card)
               sys.exit(0)
-          if c.get('archived'):
-              print('card %s 已是归档态，无需重复' % card)
-              sys.exit(0)
-          c['archived'] = True
-          c.pop('dormant', None)
           tz8 = datetime.timezone(datetime.timedelta(hours=8))
-          c['archived_at'] = datetime.datetime.now(tz8).strftime('%Y-%m-%d')
-          c['archived_by'] = 'manual'
+          now = datetime.datetime.now(tz8).strftime('%Y-%m-%d %H:%M')
+          if not c.get('archived'):
+              c['archived'] = True
+              c.pop('dormant', None)
+              c['archived_at'] = now[:10]
+              c['archived_by'] = 'manual'
+              print('已归档: %s (%s)' % (card, c.get('title', '')))
+          else:
+              print('card %s 已是归档态，内容不变' % card)
+          # v567【关键】归档只改 archived 不动 generated 的话，前端 applyCardData
+          # 的幂等（gen<=已加载即跳过）会卡死归档状态落地——2026-11-24 00:38 用户
+          # 实测点完归档"无变化"就是这个原因（云端已归档、前端永远看不到）。
+          # 各卡正文时间以 c.updated 为准不受影响；这里 bump generated 仅作数据版本号。
+          d['generated'] = now
           json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-          print('已归档: %s (%s)' % (card, c.get('title', '')))
+          print('generated ->', now)
           PY
 
       - name: 提交
