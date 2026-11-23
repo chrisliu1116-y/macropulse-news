@@ -1,8 +1,8 @@
-# 临时验收工作流（v565 排查用，结论落档后可删）
-# 目的只有两个，都是"零推断、只认实测"：
-#   ① 逐 key 体检：三个 Gemini key 到底是不是都 429、是不是真的不同项目（指纹不同）
-#   ② 强制 Gemini 缺席（故意不注入 GEMINI_*），验证 Groq 兜底能否真的接管单卡重写
-name: LLM 三层兜底端到端验收（临时）
+# 诊断/验收工作流（手动触发，无定时，不参与三班）
+# 用途：① 逐 key 体检：Gemini 多 key 到底是 429（配额）还是 503（模型过载）、key 是否真不同项目
+#      ② 强制 Gemini 缺席（故意不注入 GEMINI_*），验证 Groq 兜底能否真的接管单卡重写
+# 判定：末行 GROQ_TAKEOVER = PASS / FAIL，一眼可见
+name: LLM 兜底端到端验收（手动·诊断用）
 on:
   workflow_dispatch:
     inputs:
