@@ -92,6 +92,12 @@ jobs:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
           GEMINI_KEY: ${{ secrets.GEMINI_KEY || secrets.GEMINI_API_KEYS }}
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS || secrets.GEMINI_KEY }}
+          # v565【Groq 兜底修根】v539 起卡片更新走 groq_fallback=True，但本文件一直
+          # 没注入 GROQ_KEY → llm_pool._try_groq_heavy() 首行 `if not key: return None`
+          # 直接空转，Gemini 三 key 全 429 时无第三层兜底 → 掉 local-rule（28字残稿）。
+          # 必须与 gemini 双别名同款写法，兼容只配了其中一个 secret 的情况。
+          GROQ_KEY: ${{ secrets.GROQ_KEY || secrets.GROQ_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || secrets.GROQ_KEY }}
           CARD: ${{ inputs.card }}
         run: |
           python3 tools/evolve_events.py \
@@ -106,6 +112,9 @@ jobs:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
           GEMINI_KEY: ${{ secrets.GEMINI_KEY || secrets.GEMINI_API_KEYS }}
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS || secrets.GEMINI_KEY }}
+          # v565：建卡判定链主通道是 Groq 普通档，缺 key 时它会静默跳过 → 补上
+          GROQ_KEY: ${{ secrets.GROQ_KEY || secrets.GROQ_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || secrets.GROQ_KEY }}
         run: |
           # v501修复：build_news_map.py 已从 CF 池顺手导出当日 S/A 分级条目，
           # 替换掉之前读不到的旧贴标产物(daily_news_graded/llm_news_full)链路断裂问题。
@@ -142,6 +151,9 @@ jobs:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
           GEMINI_KEY: ${{ secrets.GEMINI_KEY || secrets.GEMINI_API_KEYS }}
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS || secrets.GEMINI_KEY }}
+          # v565：确认后写卡与卡片更新同模式（Gemini 主 + Groq 重型兜底），同样补 key
+          GROQ_KEY: ${{ secrets.GROQ_KEY || secrets.GROQ_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || secrets.GROQ_KEY }}
         run: |
           python3 tools/radar_publish.py \
             --radar data/_radar_shadow.json \

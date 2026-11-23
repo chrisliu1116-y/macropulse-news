@@ -150,6 +150,10 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
         'archived': bool((_prev or {}).get('archived', False)),
         'dormant': bool((_prev or {}).get('dormant', False)),
         'model_channel': 'local-rule',
+        # v565【每卡独立更新时间】fallback 表示"本轮没更新成功、沿用旧内容"，
+        # 绝不能刷成当前时间（否则前端显示"刚刚更新"却是旧内容=假报）。
+        # 保留上一轮 true updated；老数据没有该字段则留空，前端回落全局 generated。
+        'updated': (_prev or {}).get('updated') or '',
     }
     if not do_llm:
         return fallback
@@ -173,6 +177,10 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
             fallback['model_channel'] = ch + '(parse-failed)'
             return fallback
         out['model_channel'] = ch
+        # v565【每卡独立更新时间】只有真跑成功 LLM 的卡才写 updated。
+        # 之前全批共用顶层 generated，前端只能拿它显示 → 看上去"所有卡同一时间一起更新"，
+        # 掩盖了"某张卡其实掉 fallback 没更新"的事实。单卡模式下其余卡保留各自旧值。
+        out['updated'] = bj_now_str()
         # v504 清理元评论:重型模型偶尔把「因不涉及核心议题被过滤」写进facts,
         # 那是编辑过程说明而非事实,确定性剔除。
         out['facts'] = [f for f in (out.get('facts') or [])
