@@ -1,0 +1,59 @@
+# 临时验收工作流（v565 排查用，结论落档后可删）
+# 目的只有两个，都是"零推断、只认实测"：
+#   ① 逐 key 体检：三个 Gemini key 到底是不是都 429、是不是真的不同项目（指纹不同）
+#   ② 强制 Gemini 缺席（故意不注入 GEMINI_*），验证 Groq 兜底能否真的接管单卡重写
+name: LLM 三层兜底端到端验收（临时）
+on:
+  workflow_dispatch:
+    inputs:
+      card:
+        description: '要验证的卡 id'
+        required: false
+        default: 'ukraine'
+permissions:
+  contents: read
+concurrency:
+  group: llm-e2e-check
+  cancel-in-progress: false
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Gemini 多 key 逐个体检
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+        run: python3 tools/llm_key_health.py
+
+      - name: 强制 Gemini 缺席 → 验证 Groq 兜底接管
+        env:
+          GROQ_KEY: ${{ secrets.GROQ_KEY || secrets.GROQ_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || secrets.GROQ_KEY }}
+          # 故意不注入 GEMINI_KEY / GEMINI_API_KEYS：等价于"三个 key 全 429"
+          CARD_ID: ${{ inputs.card }}
+        run: |
+          python3 tools/evolve_events.py \
+            --card "$CARD_ID" \
+            --news data/events_news_today.json \
+            --prev data/events_daily.json \
+            --out /tmp/e2e.json
+          python3 - <<'PY'
+          import json, os
+          d = json.load(open('/tmp/e2e.json', encoding='utf-8'))
+          cid = os.environ['CARD_ID']
+          c = d['cards'][cid]
+          print('=== E2E 结果 ===')
+          print('card      =', cid)
+          print('CHANNEL   =', c.get('model_channel'))
+          print('LEN       =', len(c.get('summary') or ''))
+          print('STATUS    =', c.get('status'))
+          print('UPDATED   =', c.get('updated'))
+          ok = str(c.get('model_channel') or '').startswith('groq/')
+          print('GROQ_TAKEOVER =', 'PASS' if ok else 'FAIL')
+          PY
