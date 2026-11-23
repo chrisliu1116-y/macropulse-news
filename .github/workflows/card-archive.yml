@@ -1,0 +1,88 @@
+# v565b【APP 手动归档卡】由详情页「归档」按钮触发（worker /__card-archive dispatch）。
+# 设计要点：
+#   · 无 LLM、无重型步骤：只把 data/events_daily.json 里指定卡 archived=true 并提交，
+#     几秒跑完，不烧任何模型额度。
+#   · concurrency 与 evolve-events 同组：绝不与三班定时更新同时写同一文件。
+#   · evolve_events.py 主循环对 archived/dormant 卡直接 SKIP（保留内容不再更新），
+#     所以这里落盘后，日常班次自动不再更新该卡——无需改主脚本。
+#   · 只允许 [a-z0-9_]{1,24} 卡 id，经 env 传入防 YAML 注入。
+name: 事件卡手动归档（APP按钮·无LLM）
+
+on:
+  workflow_dispatch:
+    inputs:
+      card:
+        description: '要归档的卡 id（如 ukraine）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: evolve-events
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 归档指定卡（无LLM，纯数据操作）
+        env:
+          CARD: ${{ inputs.card }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, sys, datetime
+          card = (os.environ.get('CARD') or '').strip().lower()
+          if not re.fullmatch(r'[a-z0-9_]{1,24}', card):
+              sys.exit('bad card id: %r' % card)
+          p = 'data/events_daily.json'
+          d = json.load(open(p, encoding='utf-8'))
+          c = (d.get('cards') or {}).get(card)
+          if not c:
+              print('card %s 不存在于 events_daily.json，跳过（不报错，幂等）' % card)
+              sys.exit(0)
+          if c.get('archived'):
+              print('card %s 已是归档态，无需重复' % card)
+              sys.exit(0)
+          c['archived'] = True
+          c.pop('dormant', None)
+          tz8 = datetime.timezone(datetime.timedelta(hours=8))
+          c['archived_at'] = datetime.datetime.now(tz8).strftime('%Y-%m-%d')
+          c['archived_by'] = 'manual'
+          json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+          print('已归档: %s (%s)' % (card, c.get('title', '')))
+          PY
+
+      - name: 提交
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain -- data/events_daily.json)" ]; then
+            echo "无变化，跳过提交"
+            exit 0
+          fi
+          git config user.name "evolve-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/events_daily.json
+          git -c user.name="evolve-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "archive: 手动归档卡 ${{ inputs.card }} $(TZ=Asia/Shanghai date +%Y-%m-%d\ %H:%M)"
+          git push origin HEAD:main || {
+            echo "::warning::push失败，rebase后重试"
+            git -c user.name="evolve-bot" pull --rebase origin main || true
+            git push origin HEAD:main
+          }
+
+      - name: 刷新 CDN
+        run: |
+          curl -fsS --max-time 20 \
+            "https://purge.jsdelivr.net/gh/chrisliu1116-y/macropulse-news@main/data/events_daily.json" \
+            || echo "::warning::purge 失败"

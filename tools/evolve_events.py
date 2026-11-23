@@ -280,6 +280,11 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
         return out
     except AllModelsFailed as e:
         fallback['model_channel'] = 'local-rule(all-llm-failed)'
+        # v565b【失败留痕】AllModelsFailed 的 message 是各通道失败原因拼接串
+        # (如 "gemini/...:HTTP503; groq/gpt-oss-120b:Timeout")。之前只进 stdout，
+        # json 里无痕 → 2026-11-23 23:03 ukraine 掉残稿后无法取证 Groq 当时
+        # 是"没调"还是"调了也失败"。落盘 _llm_errs，事后一眼可见。
+        fallback['_llm_errs'] = str(e)[:280]
         return fallback
 
 def main():

@@ -132,13 +132,18 @@ jobs:
             --out data/events_daily.json \
             --min-high 3
 
-      - name: Polyradar候选筛选（Gamma直连→白名单→CF交叉验证→智谱复核）
+      - name: Polyradar候选筛选（Gamma直连→白名单→CF交叉验证→LLM复核）
         if: inputs.card == ''    # v564:单卡手动更新跳过radar
         # radar 并入本 workflow：cron-job.org 三班(07:35/15:30/20:50)自动触发本workflow，
         # radar 随之每天自动跑。不再依赖 insum-cloud 那个死了的 GHA schedule。
-        # 红线：本步骤只用智谱(zhihu)筛候选，绝不调 Gemini。
+        # v565b：语义复核改走普通档 chat() 链（Groq主→Gemini→智谱，与新卡判定同规则），
+        # 三路 key 全部注入；缺哪路该通道自动静默跳过。
         env:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY || secrets.GEMINI_API_KEYS }}
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS || secrets.GEMINI_KEY }}
+          GROQ_KEY: ${{ secrets.GROQ_KEY || secrets.GROQ_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || secrets.GROQ_KEY }}
           MP_NEWS_POOL: data/news_merged.json
         run: |
           python3 tools/polymarket_radar.py --out data/_radar_shadow.json

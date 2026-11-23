@@ -5,19 +5,20 @@
   Gamma API 直连(24h成交额>=40万美元)
     → 四大财经白名单硬过滤(中英双语,剔除体育/娱乐/纯币价/纯股价押注)
     → CF __news 池 48h 交叉验证(含 B 级 >=2 条)
-    → 语义复核仅用智谱(严禁 Gemini)
+    → 语义复核走普通档降级链 chat()（v565b 用户拍板：与新卡判定同一规则）
     → 输出影子报告到 JSON + 日志，绝不写生产卡片/前端推送。
 
-红线：
-  · 语义复核只调 llm_pool._zhipu()，代码里绝不出现 chat()/chat_heavy()/_gemini()
-  · 影子模式：本脚本只写 --out 指定的报告文件，不改 events_daily.json
+链路说明（v565b 变更）：
+  · 语义复核改用 llm_pool.chat()：Groq qwen3.8-27b 主 → Gemini lite 兜底 → 智谱最后。
+    之前只调 _zhipu() 单通道，智谱挂了复核就空转；现与新卡判定(场景③)同一套规则。
+  · 影子模式不变：本脚本只写 --out 指定的报告文件，不改 events_daily.json
 """
 import os, sys, json, time, re, argparse, urllib.request
 from datetime import datetime, timezone, timedelta
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from llm_pool import _zhipu                      # v2: 只用智谱，绝不走 chat()(会轮换Gemini)
+from llm_pool import chat                        # v565b: 普通档降级链 Groq主→Gemini→智谱
 
 GAMMA = 'https://gamma-api.polymarket.com/events'
 EDGE_NEWS = 'https://macropulse-api.pages.dev/__news'   # 复用 build_news_map.py 的链路
@@ -270,9 +271,10 @@ def cross_validate(ev_title, cf_items, cat):
 
 
 def zhipu_review(ev_title, cat, cf_summary, days_left=None):
-    """语义复核——只用智谱，严禁 Gemini。失败返回 None（影子模式不阻断）。"""
+    """语义复核——v565b 用户拍板：本质与新卡判定是同一件事，改走场景③普通档链
+    chat()（Groq qwen3.8-27b 主 → Gemini lite 兜底 → 智谱最后）。
+    全挂返回 keep=None（影子模式不阻断）。函数名保留 zhipu_review 仅作历史兼容。"""
     try:
-        fn = _zhipu('glm-4-flash-250414')
         prompt = (
             '判断这条预测市场事件是否属于「值得宏观事件追踪卡持续跟踪的事件驱动型议题」。\n'
             '只回答 JSON: {"keep":true/false,"reason":"15字内"}\n'
@@ -283,18 +285,17 @@ def zhipu_review(ev_title, cat, cf_summary, days_left=None):
             '事件: ' + ev_title + '\n类别: ' + cat + '\n距落地天数: ' +
             ('未知' if days_left is None else str(days_left)) + '\n国内新闻佐证: ' + cf_summary[:300]
         )
-        text, ch = fn([{'role': 'user', 'content': prompt}], 120, 25)
-        assert ch.startswith('zhipu/'), '禁止非智谱通道'
+        text, ch = chat([{'role': 'user', 'content': prompt}], max_tokens=120, timeout=40)
         m = re.search(r'\{[\s\S]*?\}', text)
-        return json.loads(m.group(0)) if m else {'keep': None, 'reason': '解析失败:' + text[:60]}
+        return json.loads(m.group(0)) if m else {'keep': None, 'reason': '解析失败:' + text[:60], 'channel': ch}
     except Exception as e:
-        return {'keep': None, 'reason': '智谱复核失败:' + type(e).__name__ + ':' + str(e)[:80]}
+        return {'keep': None, 'reason': 'LLM复核失败:' + type(e).__name__ + ':' + str(e)[:80]}
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', default=os.path.join(HERE, 'polymarket_radar_shadow.json'))
-    ap.add_argument('--no-llm', action='store_true', help='跳过智谱复核(纯规则影子)')
+    ap.add_argument('--no-llm', action='store_true', help='跳过LLM语义复核(纯规则影子)')
     a = ap.parse_args()
 
     report = {'generated': bjnow(), 'mode': 'SHADOW(不写生产)', 'vol_threshold': VOL_THRESHOLD}
