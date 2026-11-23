@@ -61,6 +61,19 @@ jobs:
               print('已归档: %s (%s)' % (card, c.get('title', '')))
           else:
               print('card %s 已是归档态，内容不变' % card)
+          # v569【双保险】同步写 event_locks.json（evolve v502 独立持久锁），
+          # 防任何 prev 波动导致归档卡被复活/重新调 LLM。
+          lp = 'data/event_locks.json'
+          try:
+              lk = json.load(open(lp, encoding='utf-8')) if os.path.exists(lp) else {}
+          except Exception:
+              lk = {}
+          lk.setdefault(card, {})
+          lk[card]['archived'] = True
+          lk[card]['dormant'] = False
+          lk[card]['locked_at'] = now
+          lk[card]['reason'] = 'APP手动归档(archive按钮)'
+          json.dump(lk, open(lp, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
           # v567【关键】归档只改 archived 不动 generated 的话，前端 applyCardData
           # 的幂等（gen<=已加载即跳过）会卡死归档状态落地——2026-11-24 00:38 用户
           # 实测点完归档"无变化"就是这个原因（云端已归档、前端永远看不到）。
@@ -73,13 +86,13 @@ jobs:
       - name: 提交
         run: |
           set -euo pipefail
-          if [ -z "$(git status --porcelain -- data/events_daily.json)" ]; then
+          if [ -z "$(git status --porcelain -- data/events_daily.json data/event_locks.json)" ]; then
             echo "无变化，跳过提交"
             exit 0
           fi
           git config user.name "evolve-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/events_daily.json
+          git add data/events_daily.json data/event_locks.json
           git -c user.name="evolve-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -m "archive: 手动归档卡 ${{ inputs.card }} $(TZ=Asia/Shanghai date +%Y-%m-%d\ %H:%M)"
           git push origin HEAD:main || {

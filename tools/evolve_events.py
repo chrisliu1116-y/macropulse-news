@@ -340,15 +340,20 @@ def main():
         cards_iter = list(SCOPES)
     for _ci, cid in enumerate(cards_iter):
         # v506【归档卡不更新】已归档/休眠的卡保留昨日内容,不再调LLM(省额度+防复活)
+        # v569 修取值bug:prev 的卡在 prev['cards'][cid],此前 prev.get(cid) 从顶层
+        # 取(顶层只有 generated/cards)永远 None → 手动归档(card-archive.yml 只改
+        # events_daily.json 的 archived)后 SKIP 永不命中 → 归档卡照样烧 LLM 额度
+        # (2026-11-24 00:3x 用户质问"归档不更新没生效",实锤:20:50 班 apec 跑了 6.4s Gemini)。
         _lk = locks.get(cid) or {}
-        _pv = prev.get(cid) if isinstance(prev.get(cid), dict) else None
+        _pcards = prev.get('cards') if isinstance(prev.get('cards'), dict) else {}
+        _pv = _pcards.get(cid) if isinstance(_pcards.get(cid), dict) else None
         if _lk.get('archived') or _lk.get('dormant') or (_pv and (_pv.get('archived') or _pv.get('dormant'))):
             if _pv:
                 out = dict(_pv)
                 out['archived'] = True
                 out['model_channel'] = 'skip-archived'
                 result['cards'][cid] = out
-                print('[%s] SKIP archived/dormant (保留昨日内容)' % cid)
+                print('[%s] SKIP archived/dormant (保留昨日内容,零LLM开销)' % cid)
                 continue
         # v506【防Gemini免费版429】卡间间隔：25→45→60秒(v509,用户拍板)。
         # 实测早班5卡连发、25秒间隔仍有3张撞429。60秒把每分钟请求压到1张，
@@ -358,12 +363,16 @@ def main():
         if _ci > 0 and not single:
             time.sleep(60)
         yesterday = ''
-        if cid in prev and isinstance(prev[cid], dict):
-            yesterday = prev[cid].get('summary', '')
+        # v569: 同样的取值bug——yesterday/prev_card 也必须从 prev['cards'] 取,
+        # 否则"上一轮摘要"永远取不到(回落 core_subject)、v487 归档单向锁拿不到
+        # prev_card(LLM 判的 archived 直接生效,靠 locks 最后一道闸兜底才没复活)。
+        _pv2 = _pcards.get(cid) if isinstance(_pcards.get(cid), dict) else None
+        if _pv2:
+            yesterday = _pv2.get('summary', '')
         if not yesterday:
             yesterday = SCOPES[cid]['core_subject']
         out = evolve(cid, news_map.get(cid, []), odds_default[cid], yesterday, not a.no_llm,
-                     prev_card=prev.get(cid) if isinstance(prev.get(cid), dict) else None)
+                     prev_card=_pv2)
         # 持久锁最后一道闸:覆盖所有路径(LLM成功/fallback),不受prev波动影响
         lk = locks.get(cid) or {}
         if lk.get('archived'):
