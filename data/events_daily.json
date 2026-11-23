@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-23 23:03",
+  "generated": "2026-11-23 23:30",
   "cards": {
     "iran": {
       "status": "对峙升级与外交试探",
@@ -49,14 +49,24 @@
       "_warn": "summary 99 chars, first sentence 67 chars (target 40-160, first<=45)"
     },
     "ukraine": {
-      "status": "跟踪中",
-      "progress_line": "当前态势：等待今日数据",
-      "summary": "阿布扎比俄美乌三方会谈进程及其后续排期",
-      "facts": [],
-      "noisy_dropped": [],
+      "status": "协商排期阶段",
+      "progress_line": "当前态势：主线暂无权威进展",
+      "lead": "俄美乌阿布扎比三方会谈主线今日暂无权威进展，各方仍维持此前沟通态势。",
+      "rest": "目前焦点仍集中在后续会谈排期及人道主义交换协议的落实。尽管外部制裁压力增加且前线交火持续，但尚未出现影响谈判进程的实质性官方动作或排期变更。",
+      "facts": [
+        "主线暂无权威进展"
+      ],
+      "noisy_dropped": [
+        "欧盟委员会主席冯德莱恩：我们在制裁名单中新增60家银行",
+        "乌克兰袭击俄罗斯炼油厂 俄袭击乌电力设施",
+        "德国总理默茨表示：2008年未接纳乌克兰加入北约是一个错误"
+      ],
       "archived": false,
-      "dormant": false,
-      "model_channel": "local-rule(all-llm-failed)"
+      "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
+      "_lead_truncated": false,
+      "summary": "俄美乌阿布扎比三方会谈主线今日暂无权威进展，各方仍维持此前沟通态势。目前焦点仍集中在后续会谈排期及人道主义交换协议的落实。尽管外部制裁压力增加且前线交火持续，但尚未出现影响谈判进程的实质性官方动作或排期变更。",
+      "_summary_len": 104,
+      "_first_sent_len": 33
     },
     "apec": {
       "status": "达成深圳展望",
@@ -109,7 +119,7 @@
     {
       "channel": "groq",
       "key_env": "GROQ_KEY",
-      "configured": true
+      "configured": false
     },
     {
       "channel": "gemini",
