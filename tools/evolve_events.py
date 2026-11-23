@@ -281,7 +281,15 @@ def main():
     ap.add_argument('--prev', default='E:/WorkBuddy工作区/2026-11-03-23-29-44/data/events_daily.json')
     ap.add_argument('--out', default='E:/WorkBuddy工作区/2026-11-03-23-29-44/data/events_daily.json')
     ap.add_argument('--no-llm', action='store_true')
+    ap.add_argument('--card', default='',
+                    help='v564:只更新指定卡(空=全部5卡),如 huang。APP详情页「更新」按钮走此参数')
     a = ap.parse_args()
+
+    # v564【单卡模式】校验卡 id 必须在 SCOPES 内，防注入任意串
+    single = (getattr(a, 'card', '') or '').strip().lower()
+    if single and single not in SCOPES:
+        print('unknown card: %s (可用: %s)' % (single, ','.join(SCOPES)))
+        sys.exit(2)
 
     news_map = {}
     if os.path.exists(a.news):
@@ -309,7 +317,15 @@ def main():
     }
     result = {'generated': bj_now_str(), 'cards': {},
               'model_channels': model_status()}
-    for _ci, cid in enumerate(SCOPES):
+    if single:
+        # v564【单卡模式以 prev 为基底】输出整棵覆盖 events_daily.json，
+        # 若只写目标卡会把其余卡清空——必须先复制 prev 全部卡再只 evolve 目标。
+        for _k, _v in (prev.get('cards') or {}).items():
+            result['cards'][_k] = dict(_v) if isinstance(_v, dict) else _v
+        cards_iter = [single]
+    else:
+        cards_iter = list(SCOPES)
+    for _ci, cid in enumerate(cards_iter):
         # v506【归档卡不更新】已归档/休眠的卡保留昨日内容,不再调LLM(省额度+防复活)
         _lk = locks.get(cid) or {}
         _pv = prev.get(cid) if isinstance(prev.get(cid), dict) else None
@@ -325,7 +341,8 @@ def main():
         # 实测早班5卡连发、25秒间隔仍有3张撞429。60秒把每分钟请求压到1张，
         # 最大化给免费版RPM留余量；5卡总间隔4分钟，对timeout=60分无影响。
         # 注意：限流按GCP项目计(非按key)，根治需多项目多key或付费层，见RULES_运维发版.md。
-        if _ci > 0:
+        # v564：单卡模式无卡间间隔（只调 1 次 LLM）；全量5卡仍保持 60s 防 429
+        if _ci > 0 and not single:
             time.sleep(60)
         yesterday = ''
         if cid in prev and isinstance(prev[cid], dict):

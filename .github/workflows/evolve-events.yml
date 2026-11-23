@@ -13,6 +13,10 @@ on:
         description: 'full=全量重写 / dry=仅测试不提交'
         required: false
         default: 'full'
+      card:
+        description: 'v564:只更新指定卡(空=全部5卡),如 huang。APP详情页「更新」按钮触发'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -88,13 +92,16 @@ jobs:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
           GEMINI_KEY: ${{ secrets.GEMINI_KEY || secrets.GEMINI_API_KEYS }}
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS || secrets.GEMINI_KEY }}
+          CARD: ${{ inputs.card }}
         run: |
           python3 tools/evolve_events.py \
+            --card "$CARD" \
             --news data/events_news_today.json \
             --prev data/events_daily.json \
             --out data/events_daily.json
 
       - name: 自动建卡 + 双轨归档（自治）
+        if: inputs.card == ''    # v564:单卡手动更新跳过建卡(省额度、不引入新卡)
         env:
           ZHIPU_KEY: ${{ secrets.ZHIPU_KEY }}
           GEMINI_KEY: ${{ secrets.GEMINI_KEY || secrets.GEMINI_API_KEYS }}
@@ -117,6 +124,7 @@ jobs:
             --min-high 3
 
       - name: Polyradar候选筛选（Gamma直连→白名单→CF交叉验证→智谱复核）
+        if: inputs.card == ''    # v564:单卡手动更新跳过radar
         # radar 并入本 workflow：cron-job.org 三班(07:35/15:30/20:50)自动触发本workflow，
         # radar 随之每天自动跑。不再依赖 insum-cloud 那个死了的 GHA schedule。
         # 红线：本步骤只用智谱(zhihu)筛候选，绝不调 Gemini。
@@ -127,6 +135,7 @@ jobs:
           python3 tools/polymarket_radar.py --out data/_radar_shadow.json
 
       - name: Polyradar审批队列（骨架入队+确认后Gemini补全）
+        if: inputs.card == ''    # v564:单卡手动更新跳过
         # Phase3：radar 净新增候选写 auto_ 骨架卡(不调Gemini)进前端待审队列；
         # 只在 CF /__card-confirm 回执里已确认的候选才调 Gemini 补全三段式。
         env:

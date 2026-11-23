@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-23 22:33",
+  "generated": "2026-11-23 23:03",
   "cards": {
     "iran": {
       "status": "对峙升级与外交试探",
@@ -83,32 +83,32 @@
     },
     "huang": {
       "status": "黄仁勋正式复职",
-      "progress_line": "当前态势：正式复职。英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普公开背书其合法性。",
-      "lead": "英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府未发现其违法证据并公开支持。",
-      "rest": "黄仁勋对此表示荣幸并已准备投入工作。公司强调重新委任无安全风险，Harvey C. Jones 留任董事会主席，内部调查将持续直至结束。",
+      "progress_line": "当前态势：管理层回归。英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府无违法证据并公开背书。",
+      "lead": "英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府未发现其违法证据并公开支持其复职。",
+      "rest": "黄仁勋表示荣幸回归并已准备投入工作。公司强调重新委任无安全风险，Harvey C. Jones 留任董事会主席，内部调查将持续直至结束。",
       "facts": [
         "英伟达董事会一致同意恢复黄仁勋总裁兼首席执行官职务",
-        "特朗普表示美国司法部长已证实政府无证据表明黄仁勋从事任何非法行为，并称复职决定正确",
-        "英伟达官方表示重新委任黄仁勋不会带来安全风险，Harvey C. Jones 将继续担任董事会主席",
-        "公司内部调查将继续进行直至结束"
+        "特朗普表示美国司法部长已证实政府没有证据表明黄仁勋从事任何非法行为，并评价复职决定正确且恰当",
+        "黄仁勋回应称很荣幸重返英伟达，并表示迫不及待地想回去工作",
+        "公司宣布 Harvey C. Jones 将继续担任董事会主席，内部调查将继续进行直至结束"
       ],
       "noisy_dropped": [
-        "英伟达盘前飙升30%，带动芯片股集体拉升",
+        "英伟达美股盘前涨幅扩大至30%",
         "黄仁勋重返英伟达后，交易员加大英国央行和欧洲央行加息押注",
         "美国信用违约风险在黄仁勋复职后进一步缓解"
       ],
       "archived": false,
       "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
-      "summary": "英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府未发现其违法证据并公开支持。黄仁勋对此表示荣幸并已准备投入工作。公司强调重新委任无安全风险，Harvey C. Jones 留任董事会主席，内部调查将持续直至结束。",
-      "_summary_len": 110,
-      "_first_sent_len": 41,
-      "_lead_truncated": false
+      "_lead_truncated": false,
+      "summary": "英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府未发现其违法证据并公开支持其复职。黄仁勋表示荣幸回归并已准备投入工作。公司强调重新委任无安全风险，Harvey C. Jones 留任董事会主席，内部调查将持续直至结束。",
+      "_summary_len": 113,
+      "_first_sent_len": 44
     }
   },
   "model_channels": [
     {
-      "channel": "zhipu",
-      "key_env": "ZHIPU_KEY",
+      "channel": "groq",
+      "key_env": "GROQ_KEY",
       "configured": true
     },
     {
@@ -117,81 +117,14 @@
       "configured": true
     },
     {
+      "channel": "zhipu",
+      "key_env": "ZHIPU_KEY",
+      "configured": true
+    },
+    {
       "channel": "local-rule",
       "key_env": null,
       "configured": true
     }
-  ],
-  "archive": {},
-  "incubator_log": [
-    {
-      "date": "2026-11-22",
-      "theme": "伊朗/中东",
-      "n_candidates": 41,
-      "decision": "rejected",
-      "reason": "无Polymarket活跃合约(严格模式拒绝建卡)",
-      "channel": "zhipu/glm-z1-flash(deep-primary)(no-poly-contract)"
-    },
-    {
-      "date": "2026-11-22",
-      "theme": "原油/能源",
-      "n_candidates": 9,
-      "decision": "rejected",
-      "reason": "多事件混杂",
-      "channel": "zhipu/glm-z1-flash(deep-primary)"
-    },
-    {
-      "date": "2026-11-22",
-      "theme": "俄乌",
-      "n_candidates": 18,
-      "decision": "rejected",
-      "reason": "无Polymarket活跃合约(严格模式拒绝建卡)",
-      "channel": "zhipu/glm-z1-flash(deep-primary)(no-poly-contract)"
-    },
-    {
-      "date": "2026-11-22",
-      "theme": "科技股",
-      "n_candidates": 5,
-      "decision": "rejected",
-      "reason": "跨多独立事件",
-      "channel": "zhipu/glm-z1-flash(deep-primary)"
-    }
-  ],
-  "archive_policy_log": [
-    {
-      "action": "archive",
-      "card": "apec",
-      "reason": "终局完结"
-    }
-  ],
-  "radar_publish": {
-    "generated": "2026-11-22 16:03",
-    "skeleton_added": 0,
-    "gemini_completed": 0,
-    "archive_candidates": [],
-    "archived": []
-  },
-  "huang": {
-    "status": "黄仁勋正式复职",
-    "progress_line": "复职定局：董事会全票通过恢复黄仁勋CEO职务，特朗普公开背书。",
-    "lead": "英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府未发现其违法证据并公开支持其复职。",
-    "rest": "黄仁勋表示荣幸回归并已准备投入工作。公司强调重新委任无安全风险，Harvey C. Jones 留任董事会主席，内部调查将持续直至结束。",
-    "facts": [
-      "英伟达董事会一致投票恢复黄仁勋总裁兼首席执行官职务",
-      "特朗普表示美国司法部长已证实政府无证据表明黄仁勋从事非法行为",
-      "黄仁勋公开回应称很荣幸重返公司并迫不及待投入工作",
-      "Harvey C. Jones 将继续担任董事会主席，相关内部调查仍将继续"
-    ],
-    "noisy_dropped": [
-      "英伟达美股盘前涨幅扩大至30%",
-      "交易员加大对欧洲央行和英国央行加息的押注",
-      "美国信用违约风险在黄仁勋复职后进一步缓解"
-    ],
-    "archived": false,
-    "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
-    "_lead_truncated": false,
-    "summary": "英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府未发现其违法证据并公开支持其复职。黄仁勋表示荣幸回归并已准备投入工作。公司强调重新委任无安全风险，Harvey C. Jones 留任董事会主席，内部调查将持续直至结束。",
-    "_summary_len": 113,
-    "_first_sent_len": 44
-  }
+  ]
 }
