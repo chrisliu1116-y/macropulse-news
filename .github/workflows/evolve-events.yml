@@ -175,10 +175,10 @@ jobs:
           assert len(cards)>=4, '卡片数不足4'
           for cid,c in cards.items():
               s=c.get('summary','')
-              # v471：重型模型偶发20字摘要(归档卡更短)，下限25→15；
-              # 归档/休眠卡只要求有简介(≥8字)，上限160、首句48铁律不变。
-              minlen = 8 if (c.get('archived') or c.get('dormant')) else 15
-              assert minlen<=len(s)<=160, '%s 字数异常 %d'%(cid,len(s))
+              # v579：用户拍板活跃卡摘要 80~200 字；归档/休眠卡仍只要求有简介(≥8字)。
+              # 首句48字护栏不变（代码层首句目标≤45，48是提交硬上限）。
+              minlen = 8 if (c.get('archived') or c.get('dormant')) else 80
+              assert minlen<=len(s)<=200, '%s 字数异常 %d'%(cid,len(s))
               first=s.split('。')[0]
               assert len(first)<=48, '%s 首句超45字铁律 %d'%(cid,len(first))
               assert c.get('status'), '%s 无气泡'%cid

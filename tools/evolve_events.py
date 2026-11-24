@@ -66,6 +66,12 @@ SCOPES = {
     },
 }
 
+# 摘要长度现行口径（用户 2026-11-24 拍板：80~200 字，首句仍≤45字）
+SUMMARY_MIN = 80
+SUMMARY_MAX = 200
+LEAD_MAX = 45
+GHA_FIRST_MAX = 48
+
 SYS = """你是金融终端的事件情报编辑。请结合【昨日卡片状态】与【今日关联新闻（按时间倒序）】，按 Scope Schema（core_subject 核心主体 / stage_focus 阶段焦点 / exclude_noise 排除噪音），将事件提纯为以下严格 JSON（不要 markdown 代码块，不要额外解释）：
 
 {
@@ -85,7 +91,7 @@ SYS = """你是金融终端的事件情报编辑。请结合【昨日卡片状�
    - 实时行情/涨跌幅/赔率/股价数字（如 96.8%、涨5%、布伦特100美元）一律不写，交给下方实时块；
    - 事件本身的事实数字（如筹资金额、协议项数、关键日期）必须严格按原文保留，严禁跨新闻串台或编造。
 4. 排版与时态：
-   - 倒金字塔结构：lead 必须≤45字且包含最新核心动作；lead+rest 拼成的全文控制在 40~160 字（有重大进展写足细节，无新进展 40~60 字精炼交代现状），用中文句号连成一段，禁用 ①②③ 或列表符号；
+   - 倒金字塔结构：lead 必须≤45字且包含最新核心动作；lead+rest 拼成的全文控制在 80~200 字（有重大进展写足细节，无新进展也要交代现状与关键看点，不得压缩成一句话），用中文句号连成一段，禁用 ①②③ 或列表符号；
    - 严格以输入的"当前日期"为准，区分"将举行/进行中/已闭幕"，绝不把未来或进行中的事写成已完成；仅当事件彻底落幕（闭幕/签署/合约终局）时 archived=true。"""
 
 def build_user_prompt(card, facts_text, odds_text, yesterday):
@@ -191,34 +197,37 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
         lead = re.sub(r'[①②③④⑤]', '', out.get('lead', '')).strip()
         rest = re.sub(r'[①②③④⑤]', '', out.get('rest', '')).strip()
         if lead:
-            if len(lead) > 45:
+            if len(lead) > LEAD_MAX:
                 # 超长：按逗号/顿号截到最后一个≤45字的语义点，不硬切词
                 cut = None
                 for sep in ['，', '；', '、', ' ']:
-                    idx = lead.rfind(sep, 0, 46)
+                    idx = lead.rfind(sep, 0, LEAD_MAX + 1)
                     if idx > 15:
                         cut = lead[:idx]
                         break
-                lead = (cut or lead[:45]).rstrip('，；、 ') + '…'
+                lead = (cut or lead[:LEAD_MAX]).rstrip('，；、 ') + '…'
             if not lead.endswith(('。', '！', '？', '…')):
                 lead += '。'
-            out['_lead_truncated'] = len(out.get('lead','')) > 45
+            out['_lead_truncated'] = len(out.get('lead','')) > LEAD_MAX
             summary = (lead + rest).strip()
         else:
             summary = re.sub(r'[①②③④⑤]', '', out.get('summary', '')).strip()
         out['summary'] = summary
-        # 弹性长度校验：40~160 字；首句铁律：第一句≤45字且含核心结果
+        # 字数口径：80~200 字；首句铁律：第一句≤45字且含核心结果
         slen = len(summary)
         first_sent = re.split(r'[。！？]', summary)[0]
         first_len = len(first_sent)
-        need_fix = not (40 <= slen <= 160) or first_len > 45
+        need_fix = not (SUMMARY_MIN <= slen <= SUMMARY_MAX) or first_len > LEAD_MAX
         if need_fix:
             problems = []
-            if slen < 40: problems.append('全文只有%d字(太短,至少40)' % slen)
-            if slen > 160: problems.append('全文%d字(太长,最多160)' % slen)
-            if first_len > 45: problems.append('第一句%d字(超过45字铁律,首句必须直接给核心结果)' % first_len)
+            if slen < SUMMARY_MIN:
+                problems.append('全文只有%d字(太短,至少%d)' % (slen, SUMMARY_MIN))
+            if slen > SUMMARY_MAX:
+                problems.append('全文%d字(太长,最多%d)' % (slen, SUMMARY_MAX))
+            if first_len > LEAD_MAX:
+                problems.append('第一句%d字(超过45字铁律,首句必须直接给核心结果)' % first_len)
             fix_prompt = (prompt + '\n\n【重写指令】你上次输出有问题：' + '；'.join(problems)
-                          + '。请按倒金字塔重写：第一句≤45字直接给核心结果，全文40~160字按信息密度自适应，只输出完整JSON。')
+                          + '。请按倒金字塔重写：第一句≤45字直接给核心结果，全文80~200字按信息密度自适应，只输出完整JSON。')
             try:
                 text2, ch2 = chat_heavy([{'role': 'system', 'content': SYS},
                                    {'role': 'user', 'content': fix_prompt}], max_tokens=4000, timeout=60, temperature=0.15, allow_zhipu=False, groq_fallback=True)
@@ -226,48 +235,55 @@ def evolve(card, news, odds, yesterday, do_llm=True, prev_card=None):
                 if out2 and out2.get('summary'):
                     s2 = re.sub(r'[①②③④⑤]', '', out2['summary']).strip()
                     fs2 = len(re.split(r'[。！？]', s2)[0])
-                    if 40 <= len(s2) <= 160 and fs2 <= 45:
+                    if SUMMARY_MIN <= len(s2) <= SUMMARY_MAX and fs2 <= LEAD_MAX:
                         out['summary'] = s2
                         out['model_channel'] = ch2 + '(rewritten)'
                         slen, first_len = len(s2), fs2
             except Exception:
                 pass
-        # v461【代码层硬兜底】重型模型偶尔连续两次输出过短摘要(19字)，重写也算不达标。
-        # 用 facts 事实清单补足到≥30字（事实是已核实内容，不是编造），再做首句≤45截断。
-        if len(out['summary']) < 30:
-            facts = out.get('facts') or []
-            extra = ''
-            for f in facts:
+        # 代码层硬兜底：重型模型重写后仍<80字时，用 facts / progress_line / 昨日摘要补足。
+        # 全部来自已核实事实与既有卡片状态，不编造新事件。
+        if len(out['summary']) < SUMMARY_MIN:
+            extra_bits = []
+            for f in (out.get('facts') or []):
                 f = re.sub(r'[①②③④⑤]', '', str(f)).strip()
-                if f and f not in out['summary']:
-                    extra += ('。' if extra else '') + f
-                if len(out['summary']) + len(extra) >= 42:
+                if f and f not in out['summary'] and f not in extra_bits:
+                    extra_bits.append(f)
+                if len(out['summary']) + sum(len(x) + 1 for x in extra_bits) >= SUMMARY_MIN + 2:
                     break
-            if extra:
-                cand = out['summary'].rstrip('。') + '。' + extra
-                if len(cand) <= 160:
+            if len(out['summary']) + sum(len(x) + 1 for x in extra_bits) < SUMMARY_MIN:
+                for b in (str(out.get('progress_line') or '').strip(), str(yesterday or '').strip()):
+                    b = re.sub(r'[①②③④⑤]', '', b).strip()
+                    if b and b not in out['summary'] and b not in extra_bits:
+                        extra_bits.append(b)
+                    if len(out['summary']) + sum(len(x) + 1 for x in extra_bits) >= SUMMARY_MIN + 2:
+                        break
+            if extra_bits:
+                cand = out['summary'].rstrip('。') + '。' + '。'.join(extra_bits)
+                if len(cand) <= SUMMARY_MAX:
                     out['summary'] = cand
                     slen = len(cand)
-        # 【提交护栏安全网】GHA 的 assert len(first)<=48 / len(s)<=160 会整轮拒绝提交,
-        # 这里幂等兜底:首句超48就在最近的句号断开,全文超160就截到完整句,绝不因
-        # 单张卡的随机生成让整轮数据白跑。
+        # 【提交护栏安全网】GHA 的 assert len(first)<=48 / len(s)<=200 会整轮拒绝提交，
+        # 这里幂等兜底：首句超48就在最近的句号断开，全文超200就截到完整句。
         _s = out.get('summary', '')
-        if len(_s) > 160:
-            _cut = _s.rfind('。', 0, 160)
-            _s = (_s[:_cut + 1] if _cut > 40 else _s[:160])
+        if len(_s) > SUMMARY_MAX:
+            _cut = _s.rfind('。', 0, SUMMARY_MAX)
+            _s = (_s[:_cut + 1] if _cut > SUMMARY_MIN else _s[:SUMMARY_MAX])
         _parts = re.split(r'(?<=。)', _s)
-        if _parts and len(_parts[0]) > 48:
+        if _parts and len(_parts[0]) > GHA_FIRST_MAX:
             _p = _parts[0]
-            _c = _p.rfind('，', 0, 48)
-            _parts[0] = (_p[:_c] + '。') if _c > 15 else (_p[:45] + '。')
+            _c = _p.rfind('，', 0, GHA_FIRST_MAX)
+            _parts[0] = (_p[:_c] + '。') if _c > 15 else (_p[:LEAD_MAX] + '。')
             _s = ''.join(_parts)
         if _s != out.get('summary', ''):
             out['summary'] = _s
             slen = len(_s)
+        first_len = len(re.split(r'[。！？]', out.get('summary', ''))[0])
         out['_summary_len'] = slen
-        out['_first_sent_len'] = len(re.split(r'[。！？]', out.get('summary', ''))[0])
-        if not (40 <= slen <= 160) or first_len > 45:
-            out['_warn'] = 'summary %d chars, first sentence %d chars (target 40-160, first<=45)' % (slen, first_len)
+        out['_first_sent_len'] = first_len
+        if not (SUMMARY_MIN <= slen <= SUMMARY_MAX) or first_len > LEAD_MAX:
+            out['_warn'] = 'summary %d chars, first sentence %d chars (target %d-%d, first<=%d)' % (
+                slen, first_len, SUMMARY_MIN, SUMMARY_MAX, LEAD_MAX)
         # v487【归档单向锁·修APEC复活bug】LLM正常返回路径此前直接沿用LLM判的 archived，
         # 导致昨天已归档(峰会闭幕)的卡今天因新新闻被LLM重判false又弹回主列表。
         # 归档是用户/演进的终态决定：一旦上一轮 archived=true，本轮强制保持 true（内容仍可更新，
