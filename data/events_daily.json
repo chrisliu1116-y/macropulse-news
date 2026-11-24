@@ -1,312 +1,225 @@
 {
-  "generated": "2026-11-24 07:38",
-  "cards": {
-    "iran": {
-      "status": "外交斡旋拉锯",
-      "progress_line": "当前态势：斡旋与制裁并进，卡塔尔持续调停美伊谈判，美方强化金融封锁。",
-      "lead": "卡塔尔首相与特使会晤美国副总统万斯，就美伊局势及相关谈判展开新一轮外交斡旋。",
-      "rest": "与此同时，美国财长贝森特重申将利用金融防线切断伊朗政权资助军事及武器项目的资金生命线。目前海峡局势仍维持外交试探与经济高压封锁并行的僵持态势，实质性突破尚待观察。",
-      "facts": [
-        "卡塔尔首相与卡塔尔特使会见美国副总统万斯，讨论与伊朗的谈判事宜。",
-        "美国财长贝森特表示，财政部将继续切断伊朗政权赖以资助其军事、武器项目和恐怖代理人的资金生命线。"
-      ],
-      "noisy_dropped": [
-        "WTI原油期货结算价为每桶80.17美元，跌幅3.88%",
-        "穆迪：预计沙特阿拉伯2026年实际非石油GDP增长1.4%",
-        "以色列利库德集团与正直党启动第三轮组阁谈判"
-      ],
-      "archived": false,
-      "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
-      "updated": "2026-11-24 07:35",
-      "_lead_truncated": false,
-      "summary": "卡塔尔首相与特使会晤美国副总统万斯，就美伊局势及相关谈判展开新一轮外交斡旋。与此同时，美国财长贝森特重申将利用金融防线切断伊朗政权资助军事及武器项目的资金生命线。目前海峡局势仍维持外交试探与经济高压封锁并行的僵持态势，实质性突破尚待观察。",
-      "_summary_len": 119,
-      "_first_sent_len": 37
-    },
-    "fed": {
-      "status": "鹰派立场强化",
-      "progress_line": "当前态势：鹰派预期升温；最新核心动作：威廉姆斯重申不排除连续加息以应对高通胀",
-      "lead": "纽约联储主席威廉姆斯重申鹰派立场，明确表示若通胀压力不缓解，不排除连续加息的可能性。",
-      "rest": "他强调10月以来数据显示通胀依然过高，政策行动的步伐将完全取决于数据。目前市场对12月加息的定价进一步巩固，后续焦点集中在本周即将公布的PCE物价指数及美联储褐皮书。",
-      "facts": [
-        "纽约联储主席威廉姆斯表示，若通胀压力不缓解，美联储不排除在连续多次会议上加息",
-        "威廉姆斯指出10月以来的数据显示通胀依然过高，政策行动将完全取决于数据"
-      ],
-      "noisy_dropped": [
-        "澳新银行：将澳洲联储降息时间的预期提前至2027年6月份",
-        "消息人士表示，美联储监察机构调查理事鲍曼与美国银行客户的晚餐一事",
-        "美联储威廉姆斯：科技板块的波动并未颠覆积极的经济前景"
-      ],
-      "archived": false,
-      "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
-      "updated": "2026-11-24 07:36",
-      "_lead_truncated": false,
-      "summary": "纽约联储主席威廉姆斯重申鹰派立场，明确表示若通胀压力不缓解，不排除连续加息的可能性。他强调10月以来数据显示通胀依然过高，政策行动的步伐将完全取决于数据。目前市场对12月加息的定价进一步巩固，后续焦点集中在本周即将公布的PCE物价指数及美联储褐皮书。",
-      "_summary_len": 125,
-      "_first_sent_len": 41
-    },
-    "ukraine": {
-      "status": "谈判扩容酝酿",
-      "progress_line": "当前态势：闭门磋商持续，德国及欧洲多方表态已做好谈判准备，暗示谈判规模或将扩容。",
-      "lead": "俄美乌阿布扎比三方会谈维持闭门磋商，德国总理及政界要员密集表态欧洲已做好谈判准备。",
-      "rest": "目前下轮会谈排期尚未敲定，核心分歧仍集中在战俘交换及人道主义协议细节。欧洲方面的积极表态显示外部压力正推动谈判由三方框架向包含欧洲的更广范围演变。",
-      "facts": [
-        "德国总理及联盟党党魁默茨先后表态称欧洲已做好与俄罗斯谈判的准备",
-        "阿布扎比三方会谈仍处于闭门阶段，尚未就下轮排期达成一致"
-      ],
-      "noisy_dropped": [
-        "欧盟提交针对俄罗斯的第22轮制裁方案",
-        "德国与乌克兰签署协议开发“德尔塔”作战管理系统",
-        "俄罗斯无人机及飞机侵犯波兰与韩国领空"
-      ],
-      "archived": false,
-      "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
-      "updated": "2026-11-24 07:38",
-      "_lead_truncated": false,
-      "summary": "俄美乌阿布扎比三方会谈维持闭门磋商，德国总理及政界要员密集表态欧洲已做好谈判准备。目前下轮会谈排期尚未敲定，核心分歧仍集中在战俘交换及人道主义协议细节。欧洲方面的积极表态显示外部压力正推动谈判由三方框架向包含欧洲的更广范围演变。",
-      "_summary_len": 114,
-      "_first_sent_len": 40
-    },
-    "apec": {
-      "status": "达成深圳展望",
-      "progress_line": "成果文件发布：会议达成《深圳展望》核心成果，中方领导人密集会见多国首脑",
-      "lead": "会议达成《深圳展望》核心成果，习近平密集会见泰、新、澳、印尼等多国领导人。",
-      "rest": "王毅表示《深圳展望》是本次中国年最重要成果。会议同步发布《亚太经合组织互联互通蓝图》，旨在深化区域经贸与数智合作。目前多边会晤持续进行，重点聚焦双边经贸关系与区域互联互通。",
-      "facts": [
-        "王毅宣布会议达成《深圳展望》，定性为APEC中国年最重要成果",
-        "习近平分别会见泰国总理阿努廷、新加坡总理黄循财、澳大利亚总理阿尔巴尼斯及印尼总统普拉博沃",
-        "《亚太经合组织互联互通蓝图》正式发布"
-      ],
-      "noisy_dropped": [
-        "亚太经合组织新世代青年企业家峰会在港举行",
-        "财联社11月20日电，芝加哥联储主席古尔斯比称，关税对通胀的影响现在应已消退。"
-      ],
-      "archived": true,
-      "model_channel": "skip-archived",
-      "_lead_truncated": false,
-      "summary": "会议达成《深圳展望》核心成果，习近平密集会见泰、新、澳、印尼等多国领导人。王毅表示《深圳展望》是本次中国年最重要成果。会议同步发布《亚太经合组织互联互通蓝图》，旨在深化区域经贸与数智合作。目前多边会晤持续进行，重点聚焦双边经贸关系与区域互联互通。",
-      "_summary_len": 123,
-      "_first_sent_len": 36,
-      "_auto_archived": true,
-      "archived_at": "2026-11-22"
-    },
-    "huang": {
-      "status": "黄仁勋正式复职",
-      "progress_line": "当前态势：管理层回归。英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府无违法证据并公开背书。",
-      "lead": "英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府未发现其违法证据并公开支持其复职。",
-      "rest": "黄仁勋表示荣幸回归并已准备投入工作。公司强调重新委任无安全风险，Harvey C. Jones 留任董事会主席，内部调查将持续直至结束。",
-      "facts": [
-        "英伟达董事会一致同意恢复黄仁勋总裁兼首席执行官职务",
-        "特朗普表示美国司法部长已证实政府没有证据表明黄仁勋从事任何非法行为，并评价复职决定正确且恰当",
-        "黄仁勋回应称很荣幸重返英伟达，并表示迫不及待地想回去工作",
-        "公司宣布 Harvey C. Jones 将继续担任董事会主席，内部调查将继续进行直至结束"
-      ],
-      "noisy_dropped": [
-        "英伟达美股盘前涨幅扩大至30%",
-        "黄仁勋重返英伟达后，交易员加大英国央行和欧洲央行加息押注",
-        "美国信用违约风险在黄仁勋复职后进一步缓解"
-      ],
-      "archived": true,
-      "model_channel": "skip-archived",
-      "_lead_truncated": false,
-      "summary": "英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府未发现其违法证据并公开支持其复职。黄仁勋表示荣幸回归并已准备投入工作。公司强调重新委任无安全风险，Harvey C. Jones 留任董事会主席，内部调查将持续直至结束。",
-      "_summary_len": 113,
-      "_first_sent_len": 44,
-      "archived_at": "2026-11-23",
-      "archived_by": "manual",
-      "_auto_archived": true
-    },
-    "auto_nvidia7094": {
-      "id": "auto_nvidia7094",
-      "icon": "🎮",
-      "title": "黄仁勋复职风波",
-      "cat": "自动发现",
-      "status": "听证在即·市场反弹",
-      "statusCls": "watch",
-      "scope": {
-        "core_subject": "NVIDIA CEO黄仁勋复职引发的政治博弈与市场AI情绪波动",
-        "stage_focus": [
-          "特朗普政治干预",
-          "国会听证调查",
-          "股价与AI板块反弹",
-          "老鼠仓质疑"
-        ],
-        "exclude_noise": [
-          "Anthropic股价震荡",
-          "马斯克力撑评论",
-          "具体股价点位168.50"
-        ]
-      },
-      "lead": "特朗普自述促成黄仁勋回归引发AI股狂潮，众参两院听证敲定12月举行。",
-      "rest": "民主党和众议院拟查复职前潜在老鼠仓，特朗普称其介入对NVIDIA至关重要。市场担忧‘AI泡沫破裂’概率暴跌，带动美股市值激增逾3万亿美元。",
-      "summary": "特朗普自述促成黄仁勋回归引发AI股狂潮，众参两院听证敲定12月举行。民主党和众议院拟查复职前潜在老鼠仓，特朗普称其介入对NVIDIA至关重要。市场担忧‘AI泡沫破裂’概率暴跌，带动美股市值激增逾3万亿美元。",
-      "progress_line": "当前态势：听证在即·市场反弹",
-      "facts": [
-        "特朗普：是我促成了“黄仁勋的回归”",
-        "Trump’s Nvidia holdings may have gained as much as $15 million as shares surged",
-        "被夸力撑黄仁勋，马斯克：顺境皆友，患难见真情",
-        "财联社11月24日电，美国参议员Scott表示，黄仁勋公开听证会将于12月3日举行。",
-        "特朗普：我的介入对黄仁勋回归非常重要"
-      ],
-      "tickers": [
-        "NVDA",
-        "SPX"
-      ],
-      "pred": {
-        "q": "what-will-trump-say-during-nevada-rally-oct-31",
-        "event": "What will Trump say during Henderson, NV rally?",
-        "market": "Will Trump say \"border\" 20 or more times during Nevada rally on Oct 31?",
-        "outcome": "Yes"
-      },
-      "polymarket": {
-        "title": "What will Trump say during Henderson, NV rally?",
-        "volume": 456028.710388,
-        "slug": "what-will-trump-say-during-nevada-rally-oct-31",
-        "matched_at": "2026-11-23 23:38"
-      },
-      "newsKeys": [
-        "黄仁勋",
-        "NVIDIA",
-        "听证会",
-        "特朗普",
-        "老鼠仓"
-      ],
-      "newsExcl": [
-        "Anthropic股价震荡",
-        "马斯克力撑评论",
-        "具体股价点位168.50"
-      ],
-      "trigger_news": [
-        {
-          "title": "特朗普：是我促成了“黄仁勋的回归”",
-          "level": "A",
-          "idx": "cf_glh-1968294461"
-        },
-        {
-          "title": "Trump’s Nvidia holdings may have gained as much as $15 million as shares surged",
-          "level": "A",
-          "idx": "cf_j10-2026112407025471"
-        },
-        {
-          "title": "被夸力撑黄仁勋，马斯克：顺境皆友，患难见真情",
-          "level": "A",
-          "idx": "cf_ws-3204496"
-        },
-        {
-          "title": "财联社11月24日电，美国参议员Scott表示，黄仁勋公开听证会将于12月3日举行。",
-          "level": "A",
-          "idx": "cf_cls-2542342"
-        },
-        {
-          "title": "特朗普：我的介入对黄仁勋回归非常重要",
-          "level": "A",
-          "idx": "cf_ingest--1533998610-1"
-        }
-      ],
-      "noisy_dropped": [],
-      "archived": false,
-      "dormant": false,
-      "auto_created": true,
-      "created_at": "2026-11-23 23:38",
-      "last_active_date": "2026-11-23",
-      "model_channel": "groq/qwen3.8-27b"
-    }
+ "generated": "2026-11-24 10:02",
+ "cards": {
+  "iran": {
+   "status": "外交斡旋拉锯",
+   "progress_line": "当前态势：斡旋与制裁并进，卡塔尔持续调停美伊谈判，美方强化金融封锁。",
+   "lead": "卡塔尔首相与特使会晤美国副总统万斯，就美伊局势及相关谈判展开新一轮外交斡旋。",
+   "rest": "与此同时，美国财长贝森特重申将利用金融防线切断伊朗政权资助军事及武器项目的资金生命线。目前海峡局势仍维持外交试探与经济高压封锁并行的僵持态势，实质性突破尚待观察。",
+   "facts": [
+    "卡塔尔首相与卡塔尔特使会见美国副总统万斯，讨论与伊朗的谈判事宜。",
+    "美国财长贝森特表示，财政部将继续切断伊朗政权赖以资助其军事、武器项目和恐怖代理人的资金生命线。"
+   ],
+   "noisy_dropped": [
+    "WTI原油期货结算价为每桶80.17美元，跌幅3.88%",
+    "穆迪：预计沙特阿拉伯2026年实际非石油GDP增长1.4%",
+    "以色列利库德集团与正直党启动第三轮组阁谈判"
+   ],
+   "archived": false,
+   "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
+   "updated": "2026-11-24 07:35",
+   "_lead_truncated": false,
+   "summary": "卡塔尔首相与特使会晤美国副总统万斯，就美伊局势及相关谈判展开新一轮外交斡旋。与此同时，美国财长贝森特重申将利用金融防线切断伊朗政权资助军事及武器项目的资金生命线。目前海峡局势仍维持外交试探与经济高压封锁并行的僵持态势，实质性突破尚待观察。",
+   "_summary_len": 119,
+   "_first_sent_len": 37
   },
-  "model_channels": [
-    {
-      "channel": "groq",
-      "key_env": "GROQ_KEY",
-      "configured": true
-    },
-    {
-      "channel": "gemini",
-      "key_env": "GEMINI_KEY",
-      "configured": true
-    },
-    {
-      "channel": "zhipu",
-      "key_env": "ZHIPU_KEY",
-      "configured": true
-    },
-    {
-      "channel": "local-rule",
-      "key_env": null,
-      "configured": true
-    }
-  ],
-  "archive": {},
-  "incubator_log": [
-    {
-      "date": "2026-11-23",
-      "theme": "美联储/利率",
-      "n_candidates": 30,
-      "decision": "rejected",
-      "reason": "无Polymarket活跃合约(严格模式拒绝建卡)",
-      "channel": "groq/qwen3.8-27b(no-poly-contract)"
-    },
-    {
-      "date": "2026-11-23",
-      "theme": "科技股",
-      "n_candidates": 145,
-      "decision": "rejected",
-      "reason": "无Polymarket活跃合约(严格模式拒绝建卡)",
-      "channel": "groq/qwen3.8-27b(no-poly-contract)"
-    },
-    {
-      "date": "2026-11-23",
-      "theme": "英伟达/黄仁勋",
-      "n_candidates": 63,
-      "decision": "created",
-      "reason": "主体明确，涉及高层政治干预与监管听证，非同质行情感知。",
-      "channel": "groq/qwen3.8-27b"
-    },
-    {
-      "date": "2026-11-23",
-      "theme": "原油/能源",
-      "n_candidates": 33,
-      "decision": "rejected",
-      "reason": "混杂行情波动与零散地缘新闻，无单一核心事件主线",
-      "channel": "groq/qwen3.8-27b"
-    },
-    {
-      "date": "2026-11-23",
-      "theme": "关税/贸易",
-      "n_candidates": 7,
-      "decision": "rejected",
-      "reason": "输入快讯包含多个完全独立的事件，未指向同一主题，不构成新事件。",
-      "channel": "gemini/gemini-flash-lite-latest"
-    },
-    {
-      "date": "2026-11-23",
-      "theme": "伊朗/中东",
-      "n_candidates": 48,
-      "decision": "rejected",
-      "reason": "输入快讯包含多条零散的中东地缘政治、美伊博弈及胡塞武装冲突事件，属于中东局势常规跟踪，不构成单一独立新事件。",
-      "channel": "gemini/gemini-flash-lite-latest"
-    },
-    {
-      "date": "2026-11-23",
-      "theme": "贵金属",
-      "n_candidates": 34,
-      "decision": "rejected",
-      "reason": "输入快讯主要为纯贵金属行情涨跌与ETF持仓播报，无独立事件驱动。",
-      "channel": "gemini/gemini-flash-lite-latest"
-    },
-    {
-      "date": "2026-11-23",
-      "theme": "俄乌",
-      "n_candidates": 36,
-      "decision": "rejected",
-      "reason": "输入快讯包含多起独立地缘政治新闻的拼凑，且多为俄乌冲突现有延续，不构成单一集中追踪的新突发事件。",
-      "channel": "gemini/gemini-flash-lite-latest"
-    }
-  ],
-  "archive_policy_log": [],
-  "radar_publish": {
-    "generated": "2026-11-24 07:38",
-    "skeleton_added": 0,
-    "gemini_completed": 0,
-    "archive_candidates": [],
-    "archived": []
+  "fed": {
+   "status": "鹰派立场强化",
+   "progress_line": "当前态势：鹰派预期升温；最新核心动作：威廉姆斯重申不排除连续加息以应对高通胀",
+   "lead": "纽约联储主席威廉姆斯重申鹰派立场，明确表示若通胀压力不缓解，不排除连续加息的可能性。",
+   "rest": "他强调10月以来数据显示通胀依然过高，政策行动的步伐将完全取决于数据。目前市场对12月加息的定价进一步巩固，后续焦点集中在本周即将公布的PCE物价指数及美联储褐皮书。",
+   "facts": [
+    "纽约联储主席威廉姆斯表示，若通胀压力不缓解，美联储不排除在连续多次会议上加息",
+    "威廉姆斯指出10月以来的数据显示通胀依然过高，政策行动将完全取决于数据"
+   ],
+   "noisy_dropped": [
+    "澳新银行：将澳洲联储降息时间的预期提前至2027年6月份",
+    "消息人士表示，美联储监察机构调查理事鲍曼与美国银行客户的晚餐一事",
+    "美联储威廉姆斯：科技板块的波动并未颠覆积极的经济前景"
+   ],
+   "archived": false,
+   "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
+   "updated": "2026-11-24 07:36",
+   "_lead_truncated": false,
+   "summary": "纽约联储主席威廉姆斯重申鹰派立场，明确表示若通胀压力不缓解，不排除连续加息的可能性。他强调10月以来数据显示通胀依然过高，政策行动的步伐将完全取决于数据。目前市场对12月加息的定价进一步巩固，后续焦点集中在本周即将公布的PCE物价指数及美联储褐皮书。",
+   "_summary_len": 125,
+   "_first_sent_len": 41
+  },
+  "ukraine": {
+   "status": "谈判扩容酝酿",
+   "progress_line": "当前态势：闭门磋商持续，德国及欧洲多方表态已做好谈判准备，暗示谈判规模或将扩容。",
+   "lead": "俄美乌阿布扎比三方会谈维持闭门磋商，德国总理及政界要员密集表态欧洲已做好谈判准备。",
+   "rest": "目前下轮会谈排期尚未敲定，核心分歧仍集中在战俘交换及人道主义协议细节。欧洲方面的积极表态显示外部压力正推动谈判由三方框架向包含欧洲的更广范围演变。",
+   "facts": [
+    "德国总理及联盟党党魁默茨先后表态称欧洲已做好与俄罗斯谈判的准备",
+    "阿布扎比三方会谈仍处于闭门阶段，尚未就下轮排期达成一致"
+   ],
+   "noisy_dropped": [
+    "欧盟提交针对俄罗斯的第22轮制裁方案",
+    "德国与乌克兰签署协议开发“德尔塔”作战管理系统",
+    "俄罗斯无人机及飞机侵犯波兰与韩国领空"
+   ],
+   "archived": false,
+   "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
+   "updated": "2026-11-24 07:38",
+   "_lead_truncated": false,
+   "summary": "俄美乌阿布扎比三方会谈维持闭门磋商，德国总理及政界要员密集表态欧洲已做好谈判准备。目前下轮会谈排期尚未敲定，核心分歧仍集中在战俘交换及人道主义协议细节。欧洲方面的积极表态显示外部压力正推动谈判由三方框架向包含欧洲的更广范围演变。",
+   "_summary_len": 114,
+   "_first_sent_len": 40
+  },
+  "apec": {
+   "status": "达成深圳展望",
+   "progress_line": "成果文件发布：会议达成《深圳展望》核心成果，中方领导人密集会见多国首脑",
+   "lead": "会议达成《深圳展望》核心成果，习近平密集会见泰、新、澳、印尼等多国领导人。",
+   "rest": "王毅表示《深圳展望》是本次中国年最重要成果。会议同步发布《亚太经合组织互联互通蓝图》，旨在深化区域经贸与数智合作。目前多边会晤持续进行，重点聚焦双边经贸关系与区域互联互通。",
+   "facts": [
+    "王毅宣布会议达成《深圳展望》，定性为APEC中国年最重要成果",
+    "习近平分别会见泰国总理阿努廷、新加坡总理黄循财、澳大利亚总理阿尔巴尼斯及印尼总统普拉博沃",
+    "《亚太经合组织互联互通蓝图》正式发布"
+   ],
+   "noisy_dropped": [
+    "亚太经合组织新世代青年企业家峰会在港举行",
+    "财联社11月20日电，芝加哥联储主席古尔斯比称，关税对通胀的影响现在应已消退。"
+   ],
+   "archived": true,
+   "model_channel": "skip-archived",
+   "_lead_truncated": false,
+   "summary": "会议达成《深圳展望》核心成果，习近平密集会见泰、新、澳、印尼等多国领导人。王毅表示《深圳展望》是本次中国年最重要成果。会议同步发布《亚太经合组织互联互通蓝图》，旨在深化区域经贸与数智合作。目前多边会晤持续进行，重点聚焦双边经贸关系与区域互联互通。",
+   "_summary_len": 123,
+   "_first_sent_len": 36,
+   "_auto_archived": true,
+   "archived_at": "2026-11-22"
+  },
+  "huang": {
+   "status": "黄仁勋正式复职",
+   "progress_line": "当前态势：管理层回归。英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府无违法证据并公开背书。",
+   "lead": "英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府未发现其违法证据并公开支持其复职。",
+   "rest": "黄仁勋表示荣幸回归并已准备投入工作。公司强调重新委任无安全风险，Harvey C. Jones 留任董事会主席，内部调查将持续直至结束。",
+   "facts": [
+    "英伟达董事会一致同意恢复黄仁勋总裁兼首席执行官职务",
+    "特朗普表示美国司法部长已证实政府没有证据表明黄仁勋从事任何非法行为，并评价复职决定正确且恰当",
+    "黄仁勋回应称很荣幸重返英伟达，并表示迫不及待地想回去工作",
+    "公司宣布 Harvey C. Jones 将继续担任董事会主席，内部调查将继续进行直至结束"
+   ],
+   "noisy_dropped": [
+    "英伟达美股盘前涨幅扩大至30%",
+    "黄仁勋重返英伟达后，交易员加大英国央行和欧洲央行加息押注",
+    "美国信用违约风险在黄仁勋复职后进一步缓解"
+   ],
+   "archived": true,
+   "model_channel": "skip-archived",
+   "_lead_truncated": false,
+   "summary": "英伟达董事会一致同意恢复黄仁勋CEO职务，特朗普证实政府未发现其违法证据并公开支持其复职。黄仁勋表示荣幸回归并已准备投入工作。公司强调重新委任无安全风险，Harvey C. Jones 留任董事会主席，内部调查将持续直至结束。",
+   "_summary_len": 113,
+   "_first_sent_len": 44,
+   "archived_at": "2026-11-23",
+   "archived_by": "manual",
+   "_auto_archived": true
   }
+ },
+ "model_channels": [
+  {
+   "channel": "groq",
+   "key_env": "GROQ_KEY",
+   "configured": true
+  },
+  {
+   "channel": "gemini",
+   "key_env": "GEMINI_KEY",
+   "configured": true
+  },
+  {
+   "channel": "zhipu",
+   "key_env": "ZHIPU_KEY",
+   "configured": true
+  },
+  {
+   "channel": "local-rule",
+   "key_env": null,
+   "configured": true
+  }
+ ],
+ "archive": {},
+ "incubator_log": [
+  {
+   "date": "2026-11-23",
+   "theme": "美联储/利率",
+   "n_candidates": 30,
+   "decision": "rejected",
+   "reason": "无Polymarket活跃合约(严格模式拒绝建卡)",
+   "channel": "groq/qwen3.8-27b(no-poly-contract)"
+  },
+  {
+   "date": "2026-11-23",
+   "theme": "科技股",
+   "n_candidates": 145,
+   "decision": "rejected",
+   "reason": "无Polymarket活跃合约(严格模式拒绝建卡)",
+   "channel": "groq/qwen3.8-27b(no-poly-contract)"
+  },
+  {
+   "date": "2026-11-23",
+   "theme": "英伟达/黄仁勋",
+   "n_candidates": 63,
+   "decision": "created",
+   "reason": "主体明确，涉及高层政治干预与监管听证，非同质行情感知。",
+   "channel": "groq/qwen3.8-27b"
+  },
+  {
+   "date": "2026-11-23",
+   "theme": "原油/能源",
+   "n_candidates": 33,
+   "decision": "rejected",
+   "reason": "混杂行情波动与零散地缘新闻，无单一核心事件主线",
+   "channel": "groq/qwen3.8-27b"
+  },
+  {
+   "date": "2026-11-23",
+   "theme": "关税/贸易",
+   "n_candidates": 7,
+   "decision": "rejected",
+   "reason": "输入快讯包含多个完全独立的事件，未指向同一主题，不构成新事件。",
+   "channel": "gemini/gemini-flash-lite-latest"
+  },
+  {
+   "date": "2026-11-23",
+   "theme": "伊朗/中东",
+   "n_candidates": 48,
+   "decision": "rejected",
+   "reason": "输入快讯包含多条零散的中东地缘政治、美伊博弈及胡塞武装冲突事件，属于中东局势常规跟踪，不构成单一独立新事件。",
+   "channel": "gemini/gemini-flash-lite-latest"
+  },
+  {
+   "date": "2026-11-23",
+   "theme": "贵金属",
+   "n_candidates": 34,
+   "decision": "rejected",
+   "reason": "输入快讯主要为纯贵金属行情涨跌与ETF持仓播报，无独立事件驱动。",
+   "channel": "gemini/gemini-flash-lite-latest"
+  },
+  {
+   "date": "2026-11-23",
+   "theme": "俄乌",
+   "n_candidates": 36,
+   "decision": "rejected",
+   "reason": "输入快讯包含多起独立地缘政治新闻的拼凑，且多为俄乌冲突现有延续，不构成单一集中追踪的新突发事件。",
+   "channel": "gemini/gemini-flash-lite-latest"
+  }
+ ],
+ "archive_policy_log": [],
+ "radar_publish": {
+  "generated": "2026-11-24 07:38",
+  "skeleton_added": 0,
+  "gemini_completed": 0,
+  "archive_candidates": [],
+  "archived": []
+ },
+ "removed_cards": [
+  {
+   "id": "auto_nvidia7094",
+   "title": "黄仁勋复职风波",
+   "removed_at": "2026-11-24 10:02",
+   "reason": "无审批自动生成 + 与已归档 huang 卡(英伟达/黄仁勋)重复；用户拍板从真源删除"
+  }
+ ]
 }
