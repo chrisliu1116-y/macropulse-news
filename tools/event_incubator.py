@@ -327,8 +327,32 @@ def main():
 
     # 建卡决策日志
     ilog = events.setdefault('incubator_log', [])
-    existing_themes = [c.get('title', '') or c.get('scope', {}).get('core_subject', '')
-                       for c in events.get('cards', {}).values()]
+    # v570【修重复建卡】原写法只取 title or core_subject——归档卡(如 huang)的
+    # title 是空的、也没有 scope，于是"英伟达/黄仁勋"主题根本没进
+    # 去重清单，LLM 再把同一主题判成新卡（11-24 黄仁勋复职风波重复建卡）。
+    # 改为:活跃卡+归档卡全纳入，每条拼 title+status+core_subject+newsKeys，并额外
+    # 用 cluster_candidates 的关键词桶做代码层硬去重（不依赖 LLM 判断）。
+    existing_themes = []
+    for c in events.get('cards', {}).values():
+        bits = []
+        for k in ('title', 'status', 'summary'):
+            v = str(c.get(k, '') or '').strip()
+            if v: bits.append(v[:40])
+        scope = c.get('scope') or {}
+        if scope.get('core_subject'): bits.append(str(scope['core_subject'])[:40])
+        nks = c.get('newsKeys') or []
+        if nks: bits.append('关键词:' + ','.join(str(x) for x in nks[:5]))
+        if bits: existing_themes.append(' / '.join(bits))
+    # 已归档卡的主题关键词硬清单：任一主题桶关键词命中归档卡的 newsKeys/summary，
+    # 该主题组直接跳过建卡（用户归档=终态，绝不允许同题复活）。
+    archived_kw = []
+    for c in events.get('cards', {}).values():
+        if not c.get('archived'):
+            continue
+        archived_kw += [str(x).lower() for x in (c.get('newsKeys') or []) if str(x).strip()]
+        for k in ('title', 'status', 'summary'):
+            archived_kw += [w.lower() for w in re.split(r'[/\s,，。]+', str(c.get(k, '') or '')) if len(w) >= 3]
+    archived_kw = set(w for w in archived_kw if len(w) >= 3)
 
     # 按主题聚类：只有同主题≥min_high条才进建卡判断（防零散新闻拼凑误建卡）
     groups = cluster_candidates(candidates)
@@ -345,6 +369,27 @@ def main():
         print('[incubate] 跳过：活跃卡已满 %d/%d' % (active_n, MAX_ACTIVE))
     else:
         for theme, cluster in qualified.items():
+            # v570【归档主题硬拦截】关键词命中已归档卡的 newsKeys/summary → 整组跳过，
+            # 不调 LLM（省额度+杜绝"归档卡换个名字复活"）。用 cluster_candidates 同一
+            # 份关键词表判主题，保证与聚类口径一致。
+            _theme_kws = {
+                '原油/能源': ['原油','布伦特','WTI','油价','OPEC','天然气','能源'],
+                '贵金属': ['黄金','白银','金价','银价','贵金属'],
+                '伊朗/中东': ['伊朗','霍尔木兹','胡塞','中东','以色列','沙特'],
+                '俄乌': ['俄乌','乌克兰','俄罗斯','普京','泽连斯基','停火'],
+                '美联储/利率': ['美联储','FOMC','加息','降息','利率','鲍威尔','沃什'],
+                '关税/贸易': ['关税','贸易战','进出口','制裁','出口管制'],
+                '科技股': ['英特尔','英伟达','苹果','微软','特斯拉','谷歌','芯片','半导体'],
+                'APEC/峰会': ['APEC','峰会','领导人会议','G20','G7'],
+                '英伟达/黄仁勋': ['黄仁勋','英伟达','NVIDIA','Jensen','CEO接任'],
+            }.get(theme, [])
+            _hit_arch = [kw for kw in _theme_kws if any(kw.lower() in w or w in kw.lower() for w in archived_kw)]
+            if _hit_arch:
+                ilog.append({'date': time.strftime('%Y-%m-%d'), 'theme': theme,
+                             'n_candidates': len(cluster), 'decision': 'rejected',
+                             'reason': '命中已归档卡主题关键词(%s)：归档即终态，禁止同题复活' % ','.join(_hit_arch[:3])})
+                print('[incubate] 主题[%s]硬拦截：命中归档关键词 %s' % (theme, _hit_arch[:3]))
+                continue
             # v2【铁律1硬拦截】整组都是纯行情/单点数据 → 连 LLM 都不用调，直接驳回
             neg_titles = [n['title'] for n in cluster if is_pure_market_noise(n['title'])]
             # ≥50% 是纯行情/单点数据 → 整组驳回（原油组 3/4、贵金属组 3/4 都在此拦下）
