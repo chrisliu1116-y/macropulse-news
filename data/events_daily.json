@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-24 20:53",
+  "generated": "2026-11-24 22:15",
   "cards": {
     "iran": {
       "status": "维持对峙僵局",
@@ -25,26 +25,26 @@
       "_first_sent_len": 36
     },
     "fed": {
-      "status": "加息预期全定价",
-      "progress_line": "当前态势：紧缩预期巩固。最新核心动作：市场完全定价12月加息，理事鲍曼因涉嫌违规受查。",
-      "lead": "市场已完全定价美联储12月加息预期，理事鲍曼因涉嫌违规正接受内部调查。",
-      "rest": "紧缩预期在12月议息会议前夕持续巩固。鲍曼遭调查这一突发治理事件成为焦点，市场正密切关注其是否会干扰FOMC决策节奏，同时等待即将公布的PCE数据及褐皮书指引。",
+      "status": "加息预期已定价",
+      "progress_line": "当前态势：市场已定价12月加息，鲍曼调查悬而未决",
+      "lead": "市场已全面定价12月加息，鲍曼调查成焦点。",
+      "rest": "紧缩预期在议息前巩固，市场关注调查是否影响决策并等待PCE与褐皮书指引。",
       "facts": [
-        "市场对美联储12月加息的预期概率已重回100%",
-        "知情人士称美联储理事鲍曼因涉嫌违规正接受内部调查"
+        "市场已完全定价美联储12月加息预期",
+        "理事鲍曼因涉嫌违规正接受内部调查"
       ],
       "noisy_dropped": [
-        "阿里健康上半年营收182.3亿元",
-        "欧洲央行管委卡西克表示必须加息以抑制通胀",
-        "韩国央行周四料再加息"
+        "AI越繁荣，美联储越难办：沃什面临抗通胀与保增长的双重考验",
+        "摩根大通认为3月SOFR与联邦基金利率基差定价有误，因资金面充裕",
+        "财政部发行2026年记账式附息（二十四期）国债1206.8亿元 票面利率1.29%"
       ],
       "archived": false,
-      "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
-      "updated": "2026-11-24 20:52",
+      "model_channel": "groq/openai/gpt-oss-120b(heavy-fallback)",
+      "updated": "2026-11-24 22:15",
       "_lead_truncated": false,
-      "summary": "市场已完全定价美联储12月加息预期，理事鲍曼因涉嫌违规正接受内部调查。紧缩预期在12月议息会议前夕持续巩固。鲍曼遭调查这一突发治理事件成为焦点，市场正密切关注其是否会干扰FOMC决策节奏，同时等待即将公布的PCE数据及褐皮书指引。",
-      "_summary_len": 115,
-      "_first_sent_len": 34
+      "summary": "市场已全面定价12月加息，鲍曼调查成焦点。紧缩预期在议息前巩固，市场关注调查是否影响决策并等待PCE与褐皮书指引。",
+      "_summary_len": 57,
+      "_first_sent_len": 20
     },
     "ukraine": {
       "status": "谈判排期未定",
@@ -139,82 +139,5 @@
       "key_env": null,
       "configured": true
     }
-  ],
-  "archive": {},
-  "incubator_log": [
-    {
-      "date": "2026-11-24",
-      "theme": "美联储/利率",
-      "n_candidates": 29,
-      "decision": "rejected",
-      "reason": "属于现有卡'加息预期全定价'的直接进展",
-      "channel": "groq/qwen3.8-27b"
-    },
-    {
-      "date": "2026-11-24",
-      "theme": "科技股",
-      "n_candidates": 156,
-      "decision": "rejected",
-      "reason": "命中已归档卡主题关键词(英伟达)：归档即终态，禁止同题复活"
-    },
-    {
-      "date": "2026-11-24",
-      "theme": "伊朗/中东",
-      "n_candidates": 45,
-      "decision": "rejected",
-      "reason": "属现有霍尔木兹卡进展，沙特/英国新闻零散，未构成新主体事件",
-      "channel": "groq/qwen3.8-27b"
-    },
-    {
-      "date": "2026-11-24",
-      "theme": "俄乌",
-      "n_candidates": 25,
-      "decision": "rejected",
-      "reason": "属于乌克兰战争及现有谈判卡片的持续进展，非独立新事件。",
-      "channel": "groq/qwen3.8-27b"
-    },
-    {
-      "date": "2026-11-24",
-      "theme": "贵金属",
-      "n_candidates": 24,
-      "decision": "rejected",
-      "reason": "纯行情/单点数据占比54%(负面清单硬拦截)",
-      "rejected_titles": [
-        "技术刘Pro：黄金周内高低点同步下移，空头还在努力压制反弹",
-        "财联社11月24日电，现货白银向下跌破42美元/盎司，日内下跌2.69%。",
-        "黄金冲高回落但期权继续加仓，多头上攻路线是否已经浮现？"
-      ]
-    },
-    {
-      "date": "2026-11-24",
-      "theme": "原油/能源",
-      "n_candidates": 25,
-      "decision": "rejected",
-      "reason": "零散新闻拼凑，无单一核心事件主体，且夹带纯行情播报。",
-      "channel": "groq/qwen3.8-27b"
-    },
-    {
-      "date": "2026-11-24",
-      "theme": "英伟达/黄仁勋",
-      "n_candidates": 71,
-      "decision": "rejected",
-      "reason": "命中已归档卡主题关键词(黄仁勋,英伟达)：归档即终态，禁止同题复活"
-    },
-    {
-      "date": "2026-11-24",
-      "theme": "关税/贸易",
-      "n_candidates": 4,
-      "decision": "rejected",
-      "reason": "输入快讯包含多起无关事件，其中英伟达相关内容属现有活跃卡，不足以构成统一新卡。",
-      "channel": "gemini/gemini-flash-lite-latest"
-    }
-  ],
-  "archive_policy_log": [],
-  "radar_publish": {
-    "generated": "2026-11-24 20:53",
-    "skeleton_added": 0,
-    "gemini_completed": 0,
-    "archive_candidates": [],
-    "archived": []
-  }
+  ]
 }
