@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-25 20:53",
+  "generated": "2026-11-25 22:02",
   "cards": {
     "iran": {
       "status": "斩首威胁升级",
@@ -27,24 +27,16 @@
     "fed": {
       "status": "聚焦PCE通胀数据",
       "progress_line": "关键通胀数据发布前夕，美联储官员表态维持中性",
-      "lead": "市场高度聚焦今晚发布的美国10月PCE通胀数据，该数据将直接指引12月议息会议的政策方向。",
-      "rest": "美联储理事鲍曼在最新讲话中再次回避对经济或货币政策前景的置评。目前投资者情绪因通胀预期及科技股波动而保持高度敏感，PCE数据的表现将成为决定美联储是否维持当前降息路径的关键，市场正密切关注数据是否会强化紧缩或宽松路径。",
+      "summary": "市场高度聚焦今晚发布的美国10月PCE通胀数据，该数据将直接指引12月议息会议的政策方向。美联储理事鲍曼在最新讲话中再次回避对经济或货币政策前景的置评。目前投资者情绪因通胀预期及科技股波动而保持高度敏感，PCE数据的表现将成为决定美联储是否维持当前降息路径的关键，市场正密切关注数据是否会强化紧缩或宽松路径。",
       "facts": [
         "美国10月PCE物价指数将于11月25日晚间发布，市场预期该数据将为12月FOMC会议定调",
         "美联储理事鲍曼在银行业监管会议上的讲话中未就经济或货币政策前景发表意见"
       ],
-      "noisy_dropped": [
-        "欧洲央行管委科赫尔：利率政策不能落后于形势",
-        "英国10年期国债收益率降至5.121%，创两周新低",
-        "凯投宏观市场经济学家Joe Maher表示科技股抛售将促使投资者下调利率预期"
-      ],
+      "noisy_dropped": [],
       "archived": false,
-      "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)",
-      "updated": "2026-11-25 20:52",
-      "_lead_truncated": false,
-      "summary": "市场高度聚焦今晚发布的美国10月PCE通胀数据，该数据将直接指引12月议息会议的政策方向。美联储理事鲍曼在最新讲话中再次回避对经济或货币政策前景的置评。目前投资者情绪因通胀预期及科技股波动而保持高度敏感，PCE数据的表现将成为决定美联储是否维持当前降息路径的关键，市场正密切关注数据是否会强化紧缩或宽松路径。",
-      "_summary_len": 154,
-      "_first_sent_len": 44
+      "dormant": false,
+      "model_channel": "gemini/gemini-3-flash-preview(deep)(deep-primary)(parse-failed)",
+      "updated": "2026-11-25 20:52"
     },
     "ukraine": {
       "status": "会谈僵局延续",
@@ -139,78 +131,5 @@
       "key_env": null,
       "configured": true
     }
-  ],
-  "archive": {},
-  "incubator_log": [
-    {
-      "date": "2026-11-25",
-      "theme": "科技股",
-      "n_candidates": 53,
-      "decision": "rejected",
-      "reason": "命中已归档卡主题关键词(英伟达)：归档即终态，禁止同题复活"
-    },
-    {
-      "date": "2026-11-25",
-      "theme": "美联储/利率",
-      "n_candidates": 22,
-      "decision": "rejected",
-      "reason": "属于现有“聚焦PCE通胀数据”及美联储议息主题进展",
-      "channel": "groq/qwen3.8-27b"
-    },
-    {
-      "date": "2026-11-25",
-      "theme": "贵金属",
-      "n_candidates": 27,
-      "decision": "rejected",
-      "reason": "属纯行情波动播报，非独立新事件",
-      "channel": "groq/qwen3.8-27b"
-    },
-    {
-      "date": "2026-11-25",
-      "theme": "伊朗/中东",
-      "n_candidates": 41,
-      "decision": "rejected",
-      "reason": "属现有美伊冲突卡进展，非独立新事件",
-      "channel": "groq/qwen3.8-27b"
-    },
-    {
-      "date": "2026-11-25",
-      "theme": "原油/能源",
-      "n_candidates": 49,
-      "decision": "rejected",
-      "reason": "多为纯行情波动播报及零散政策，无单一新事件主体。",
-      "channel": "groq/qwen3.8-27b"
-    },
-    {
-      "date": "2026-11-25",
-      "theme": "俄乌",
-      "n_candidates": 25,
-      "decision": "rejected",
-      "reason": "属于现有俄乌冲突及制裁的持续进展，多为主题延续，不构成全新重大独立事件。",
-      "channel": "gemini/gemini-flash-lite-latest"
-    },
-    {
-      "date": "2026-11-25",
-      "theme": "关税/贸易",
-      "n_candidates": 8,
-      "decision": "rejected",
-      "reason": "无Polymarket活跃合约(严格模式拒绝建卡)",
-      "channel": "gemini/gemini-flash-lite-latest(no-poly-contract)"
-    },
-    {
-      "date": "2026-11-25",
-      "theme": "英伟达/黄仁勋",
-      "n_candidates": 16,
-      "decision": "rejected",
-      "reason": "命中已归档卡主题关键词(黄仁勋,英伟达)：归档即终态，禁止同题复活"
-    }
-  ],
-  "archive_policy_log": [],
-  "radar_publish": {
-    "generated": "2026-11-25 20:53",
-    "skeleton_added": 0,
-    "gemini_completed": 0,
-    "archive_candidates": [],
-    "archived": []
-  }
+  ]
 }
